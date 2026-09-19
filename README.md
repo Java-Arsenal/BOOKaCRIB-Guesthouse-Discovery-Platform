@@ -44,9 +44,9 @@ Built by **Group Arsenal**
 ## Getting Started
 
 ```bash
-git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform-.git
-cd BOOKaCRIB-Guesthouse-Discovery-Platform-
-git checkout <Backend|Web-App|Mobile-App>
+git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform.git
+cd BOOKaCRIB-Guesthouse-Discovery-Platform
+git checkout main # or Backend  / Web-App / Mobile-App
 ```
 
 Then follow that branch's own `README.md` for install steps and required `.env` values. Firebase project credentials are shared privately with the team, never commit them (each branch's `.gitignore` excludes `.env`).

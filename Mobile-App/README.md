@@ -41,9 +41,9 @@ mobile-app/
 ## Setup
 
 ```bash
-git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform-.git
-cd BOOKaCRIB-Guesthouse-Discovery-Platform-
-git checkout Mobile-App
+git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform.git
+cd BOOKaCRIB-Guesthouse-Discovery-Platform
+git checkout Backend Mobile-App
 
 npm install
 ```

@@ -46,9 +46,9 @@ backend/
 ## Setup
 
 ```bash
-git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform-.git
-cd BOOKaCRIB-Guesthouse-Discovery-Platform-
-git checkout Backend
+git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform.git
+cd BOOKaCRIB-Guesthouse-Discovery-Platform
+git checkout Backend 
 
 npm install
 ```
