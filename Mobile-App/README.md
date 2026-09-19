@@ -2,7 +2,7 @@
 
 React Native (Expo) app for the BOOKaCRIB Guesthouse Discovery Platform. Used by travelers to browse, search, favourite, and rate guesthouses. Browsing/search requires no account; favouriting and rating require login.
 
-**Team:** Wangu Zwiyo, Debbie Bame, Kutlwano Joao
+**Team:** Guide Gasebatho, Debbie Bame, Kutlwano Joao
 
 ## Tech Stack
 

@@ -2,7 +2,34 @@
 
 React + TypeScript + Tailwind CSS admin portal for the BOOKaCRIB Guesthouse Discovery Platform. Used by admins to register and manage guesthouse listings. Reads are via Firestore real-time listeners; all writes go through the backend API.
 
-**Team:** Winonah Monare, Guide Gasebatho
+**Team:** Winonah Monare, Wangu Zwiyopackage-lock.json
+package.json
+tsconfig.json
+Mobile-App
+Web-App
+.gitignore
+README.md
+BreadcrumbsBOOKaCRIB-Guesthouse-Discovery-Platform
+/Backend/
+￼
+Directory actions
+Add file￼
+Add file
+More options￼
+Latest commit
+￼
+AllenGMeti
+Initial clean project setup (Backend, Web, Mobile)
+ad7247c
+ · 
+27 minutes ago
+History
+History
+Folders and files
+Name	Last commit message	Last commit date
+parent directory
+..
+
 
 ## Tech Stack
 

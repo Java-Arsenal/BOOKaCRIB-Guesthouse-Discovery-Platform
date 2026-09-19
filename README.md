@@ -33,8 +33,8 @@ Built by **Group Arsenal**
 | Debbie Bame | 24019852 | Mobile-App |
 
 - **Backend (3):** Allen Meti, Thabiso Siele, Obakeng Molebatsi
-- **Web App (2)** Winonah Monare, Guide Gasebatho
-- **Mobile App (3)** Wangu Zwiyo, Debbie Bame, Kutlwano Joao
+- **Web App (2)** Winonah Monare, Wangu Zwiyo
+- **Mobile App (3)** Guide Gasebatho, Debbie Bame, Kutlwano Joao
 
 ## Branching Workflow
 
