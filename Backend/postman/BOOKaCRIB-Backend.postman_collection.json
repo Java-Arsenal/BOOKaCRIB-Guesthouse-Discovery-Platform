@@ -1,0 +1,116 @@
+{
+  "info": {
+    "name": "BOOKaCRIB Backend",
+    "description": "Local API requests for the Firebase Auth and Firestore emulators.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:5000" },
+    { "key": "authEmulatorUrl", "value": "http://127.0.0.1:9099" },
+    { "key": "adminEmail", "value": "admin@example.test" },
+    { "key": "adminPassword", "value": "local-admin-password" },
+    { "key": "adminToken", "value": "" },
+    { "key": "guesthouseId", "value": "demo-gaborone" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": { "method": "GET", "url": "{{baseUrl}}/api/health" }
+    },
+    {
+      "name": "Sign in seeded admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "if (body.idToken) pm.collectionVariables.set('adminToken', body.idToken);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\",\n  \"returnSecureToken\": true\n}"
+        },
+        "url": "{{authEmulatorUrl}}/identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=fake-api-key"
+      }
+    },
+    {
+      "name": "Guesthouses",
+      "item": [
+        {
+          "name": "List guesthouses",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/guesthouses" }
+        },
+        {
+          "name": "Get guesthouse",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/guesthouses/{{guesthouseId}}" }
+        },
+        {
+          "name": "Create guesthouse",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"New Guesthouse\",\n  \"description\": \"A comfortable place to stay near local attractions.\",\n  \"amenities\": [\"Wi-Fi\", \"Parking\"],\n  \"location\": {\"latitude\": -24.65, \"longitude\": 25.91},\n  \"price_per_night_bwp\": 900,\n  \"city\": \"Gaborone\",\n  \"country\": \"Botswana\",\n  \"contact_details\": {\"phone\": \"+267 390 0000\", \"email\": \"stay@example.test\"}\n}"
+            },
+            "url": "{{baseUrl}}/api/guesthouses"
+          }
+        },
+        {
+          "name": "Update guesthouse",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": { "mode": "raw", "raw": "{\n  \"price_per_night_bwp\": 950\n}" },
+            "url": "{{baseUrl}}/api/guesthouses/{{guesthouseId}}"
+          }
+        },
+        {
+          "name": "Upload guesthouse image to Cloudinary",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "" },
+                { "key": "kind", "value": "gallery", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/guesthouses/{{guesthouseId}}/images"
+          }
+        },
+        {
+          "name": "Delete guesthouse",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": "{{baseUrl}}/api/guesthouses/{{guesthouseId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Current admin",
+      "request": {
+        "method": "GET",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admins/me"
+      }
+    }
+  ]
+}
