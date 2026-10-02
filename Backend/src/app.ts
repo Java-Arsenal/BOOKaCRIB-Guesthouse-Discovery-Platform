@@ -3,7 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middleware/errorHandler';
-import { verifyToken } from './middleware/auth';
+import adminRoutes from './routes/admins';
 
 const app = express();
 
@@ -16,9 +16,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ success: true, data: { status: 'ok' } });
 });
 
-// routers get mounted here later: app.use('/api/admins', adminRoutes) etc.
-
-app.get('/api/_whoami', verifyToken, (req, res) => res.json({ success: true, data: req.user }));
+app.use('/api/admins', adminRoutes);
 
 app.use(errorHandler); // must stay last
 export default app;
