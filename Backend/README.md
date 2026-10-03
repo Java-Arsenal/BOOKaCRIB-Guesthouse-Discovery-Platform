@@ -2,7 +2,7 @@
 
 Node.js/Express REST API for the BOOKaCRIB Guesthouse Discovery Platform. This is the **single source of truth for all writes**: the web admin portal and mobile app never write to Firestore directly; they call this API, which authenticates the request, validates the payload, and uses Firestore transactions where an operation must remain atomic.
 
-**Team:** Allen Meti, Thuto Siele, Obakeng Molebatsi
+**Team:** Allen Meti, Thabiso Siele, Obakeng Molebatsi
 
 ## Tech Stack
 
