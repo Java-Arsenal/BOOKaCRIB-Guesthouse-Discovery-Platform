@@ -1,6 +1,6 @@
 # BOOKaCRIB Guesthouse Discovery Platform
 
-BOOKaCRIB is a two-part discovery platform that helps travelers find guesthouses across Botswana and gives guesthouse operators a simple, centrally managed online presence. It is strictly a **discovery** tool — there is no booking or payment functionality anywhere in the system.
+BOOKaCRIB is a two-part discovery platform that helps travelers find guesthouses across Botswana and gives guesthouse operators a simple, centrally managed online presence. It is strictly a **discovery** tool there is no booking or payment functionality anywhere in the system.
 
 Built by **Group Arsenal**
 
@@ -8,9 +8,9 @@ Built by **Group Arsenal**
 
 | Component | Description | Branch |
 |---|---|---|
-| **Backend API** | Node.js/Express REST API — single source of truth for all writes, auth, and validation | [`Backend`](../../tree/Backend) |
-| **Web Admin Portal** | React + TypeScript + Tailwind — used by admins to register and manage guesthouse listings | [`Web-App`](../../tree/Web-App) |
-| **Mobile App** | React Native (Expo) — used by travelers to browse, search, favourite, and rate guesthouses | [`Mobile-App`](../../tree/Mobile-App) |
+| **Backend API** | Node.js/Express REST API  single source of truth for all writes, auth, and validation | [`Backend`](../../tree/Backend) |
+| **Web Admin Portal** | React + TypeScript + Tailwind  used by admins to register and manage guesthouse listings | [`Web-App`](../../tree/Web-App) |
+| **Mobile App** | React Native (Expo)  used by travelers to browse, search, favourite, and rate guesthouses | [`Mobile-App`](../../tree/Mobile-App) |
 
 ## Architecture
 
@@ -48,7 +48,7 @@ Built by **Group Arsenal**
 ```bash
 git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform.git
 cd BOOKaCRIB-Guesthouse-Discovery-Platform
-git checkout Backend # or Web-App / Mobile-App / main — every branch has all three folders
+git checkout Backend # or Web-App / Mobile-App / main, every branch has all three folders
 ```
 
 Then follow that component's own `README.md` (inside `Backend/`, `Web-App/`, or `Mobile-App/`) for install steps and required `.env` values. Firebase project credentials are shared privately with the team, never commit them (each component's `.gitignore` excludes `.env`).
