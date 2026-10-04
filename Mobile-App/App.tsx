@@ -10,7 +10,7 @@ import {
   ScrollView,
   Image,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
 interface Guesthouse {
   id: string;
@@ -36,7 +36,7 @@ const COLORS = {
   border: "#E0E0E0",
 };
 
-export default function App() {
+function MainApp() {
   const [searchQuery, setSearchQuery] = useState("");
   const [budgetOnly, setBudgetOnly] = useState(false);
   const [sortByAvailability, setSortByAvailability] = useState(false);
@@ -826,3 +826,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 });
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <MainApp />
+    </SafeAreaProvider>
+  );
+}
