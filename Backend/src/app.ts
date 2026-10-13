@@ -5,6 +5,8 @@ import rateLimit from 'express-rate-limit';
 import { errorHandler } from './middleware/errorHandler';
 import adminRoutes from './routes/admins';
 import guesthouseRoutes from './routes/guesthouses';
+import customerRoutes from './routes/customers';
+import ratingRoutes from './routes/ratings';
 
 const app = express();
 // Apply security and performance middlewares
@@ -19,6 +21,9 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/admins', adminRoutes);
 app.use('/api/guesthouses', guesthouseRoutes);
+
+app.use('/api/customers', customerRoutes);
+app.use('/api/ratings', ratingRoutes);
 
 app.use(errorHandler); // must stay last
 export default app;
