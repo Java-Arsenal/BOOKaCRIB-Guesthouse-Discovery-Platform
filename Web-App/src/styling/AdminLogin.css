@@ -5,19 +5,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000000;
+  background-color: #f3f4f6;
   font-family: system-ui, -apple-system, sans-serif;
-  padding: 1rem;
+  color: #000000;
 }
 
 .admin-auth-card {
-  background-color: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 1rem;
-  padding: 2.5rem;
   width: 100%;
-  max-width: 26rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  max-width: 28rem;
+  padding: 2.5rem;
+  background-color: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .admin-auth-header {
@@ -25,18 +25,34 @@
   margin-bottom: 2rem;
 }
 
+.admin-auth-logo-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
 .admin-auth-title {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 800;
-  color: #000000;
   letter-spacing: -0.025em;
-  margin: 0 0 0.25rem 0;
+  margin: 0;
 }
 
 .admin-auth-subtitle {
   font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.5);
-  margin: 0;
+  color: rgba(0, 0, 0, 0.6);
+  margin: 0.25rem 0 0 0;
+}
+
+.admin-error-box {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem 1rem;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  font-size: 0.75rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
 }
 
 .admin-auth-form {
@@ -54,51 +70,62 @@
 .admin-input-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #000000;
+  color: #111827;
+}
+
+.admin-input-icon-wrapper {
+  position: relative;
+}
+
+.admin-input-icon {
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: rgba(0, 0, 0, 0.4);
 }
 
 .admin-auth-input {
   width: 100%;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem 0.625rem 2.25rem;
+  font-size: 0.8125rem;
   border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 0.75rem;
+  border-radius: 0.5rem;
   outline: none;
   background-color: #ffffff;
   color: #000000;
-  transition: border-color 0.2s;
   box-sizing: border-box;
 }
 
 .admin-auth-input:focus {
   border-color: #000000;
+  box-shadow: 0 0 0 1px #000000;
 }
 
 .admin-auth-btn {
+  margin-top: 0.5rem;
   width: 100%;
   padding: 0.75rem;
   background-color: #000000;
   color: #ffffff;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  border-radius: 0.75rem;
   border: none;
+  border-radius: 0.5rem;
   cursor: pointer;
-  transition: background-color 0.2s;
-  margin-top: 0.5rem;
+  transition: background-color 0.2s ease;
 }
 
 .admin-auth-btn:hover {
   background-color: #1f2937;
 }
 
-.admin-error-box {
-  font-size: 0.75rem;
-  color: #dc2626;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
+.admin-auth-footer {
+  margin-top: 1.5rem;
   text-align: center;
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+  line-height: 1.4;
 }

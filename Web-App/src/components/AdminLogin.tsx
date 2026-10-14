@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { ShieldAlert, Mail, Lock } from 'lucide-react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../firebase';
 import '../styling/AdminLogin.css';
 
 interface AdminLoginProps {
@@ -11,14 +13,14 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo check: admin@bookacrib.bw / admin123
-    if (email === 'admin@bookacrib.bw' && password === 'admin123') {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
       setError('');
       onSuccess();
-    } else {
-      setError('Invalid admin credentials. Use admin@bookacrib.bw / admin123');
+    } catch (err: any) {
+      setError('Invalid admin credentials. Please check your email or password.');
     }
   };
 
@@ -26,7 +28,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
     <div className="admin-auth-wrapper">
       <div className="admin-auth-card">
         <div className="admin-auth-header">
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '0.75rem' }}>
+          <div className="admin-auth-logo-container">
             <ShieldAlert style={{ width: '2.5rem', height: '2.5rem', color: '#000000' }} />
           </div>
           <h2 className="admin-auth-title">BOOKaCRIB Admin</h2>
@@ -38,30 +40,30 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
         <form onSubmit={handleLogin} className="admin-auth-form">
           <div className="admin-input-group">
             <label className="admin-input-label">Admin Email</label>
-            <div style={{ position: 'relative' }}>
-              <Mail style={{ width: '1rem', height: '1rem', position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.4)' }} />
+            <div className="admin-input-icon-wrapper">
+              <Mail className="admin-input-icon" />
               <input
                 type="email"
                 placeholder="admin@bookacrib.bw"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="admin-auth-input"
-                style={{ paddingLeft: '2.25rem' }}
+                required
               />
             </div>
           </div>
 
           <div className="admin-input-group">
             <label className="admin-input-label">Password</label>
-            <div style={{ position: 'relative' }}>
-              <Lock style={{ width: '1rem', height: '1rem', position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'rgba(0,0,0,0.4)' }} />
+            <div className="admin-input-icon-wrapper">
+              <Lock className="admin-input-icon" />
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="admin-auth-input"
-                style={{ paddingLeft: '2.25rem' }}
+                required
               />
             </div>
           </div>
@@ -70,10 +72,6 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
             Sign In to Admin Hub
           </button>
         </form>
-
-        <div style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '11px', color: 'rgba(0,0,0,0.4)' }}>
-          Demo credentials: <br /><b>admin@bookacrib.bw</b> / <b>admin123</b>
-        </div>
       </div>
     </div>
   );

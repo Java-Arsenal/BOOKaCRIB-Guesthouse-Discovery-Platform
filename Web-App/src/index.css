@@ -1,7 +1,13 @@
-@import "tailwindcss";
 /* src/index.css */
-* {
-  box-sizing: border-box;
+body {
   margin: 0;
   padding: 0;
+  background-color: #f3f4f6;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #000000;
+  -webkit-font-smoothing: antialiased;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
 }
