@@ -1,5 +1,5 @@
 // src/screens/GuesthouseDetailScreen.tsx
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
@@ -8,15 +8,17 @@ import {
   ScrollView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import RatingInput from "../components/RatingInput";
 
 export default function GuesthouseDetailScreen({ route, navigation }: any) {
-  // Graceful guard parameter payload extraction
   const guesthouse = route?.params?.guesthouse || {
+    id: "unknown",
     name: "Stay Details",
     location: "Unknown",
     pricePerNight: 0,
     description: "No details provided for this property listing.",
   };
+  const [rateOpen, setRateOpen] = useState(false);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -34,7 +36,21 @@ export default function GuesthouseDetailScreen({ route, navigation }: any) {
           Location: {guesthouse.location}, Botswana
         </Text>
         <Text style={styles.description}>{guesthouse.description}</Text>
+
+        <TouchableOpacity
+          style={styles.rateButton}
+          onPress={() => setRateOpen(true)}
+        >
+          <Text style={styles.rateButtonText}>Rate this stay</Text>
+        </TouchableOpacity>
       </ScrollView>
+
+      <RatingInput
+        visible={rateOpen}
+        guesthouseId={guesthouse.id}
+        guesthouseName={guesthouse.name}
+        onClose={() => setRateOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -59,4 +75,13 @@ const styles = StyleSheet.create({
   },
   location: { fontSize: 14, color: "#1a73e8", marginBottom: 16 },
   description: { fontSize: 15, color: "#5f6368", lineHeight: 22 },
+  rateButton: {
+    marginTop: 24,
+    height: 48,
+    backgroundColor: "#1a73e8",
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  rateButtonText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
 });

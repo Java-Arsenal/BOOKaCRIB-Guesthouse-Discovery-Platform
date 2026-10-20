@@ -66,7 +66,12 @@ export default function SearchScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>BOOKaCRIB</Text>
+        <View style={styles.headerTop}>
+          <Text style={styles.headerTitle}>BOOKaCRIB</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Profile")}>
+            <Text style={styles.profileLink}>Profile</Text>
+          </TouchableOpacity>
+        </View>
         <SearchBar
           searchQuery={searchQuery}
           onSearchChange={(text) => setSearchQuery(text)}
@@ -110,11 +115,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderColor: "#e9ecef",
   },
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
     color: "#1a73e8",
-    marginBottom: 12,
+  },
+  profileLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1a73e8",
   },
   filterRow: { flexDirection: "row", marginTop: 12 },
   filterChip: {
