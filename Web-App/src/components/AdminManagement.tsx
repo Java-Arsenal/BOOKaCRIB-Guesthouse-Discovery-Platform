@@ -1,44 +1,82 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Shield, UserPlus, Trash2 } from 'lucide-react';
+import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
 import '../styling/AdminManagement.css';
 
 interface AdminMember {
-  id: number;
+  id: string; // Firebase document ID
   name: string;
   email: string;
-  role: 'Super Admin' | 'Content Moderator';
+  role: string;
   lastActive: string;
 }
 
-const INITIAL_ADMINS: AdminMember[] = [
-  { id: 1, name: 'Kagiso Sechaba', email: 'kagiso@bookacrib.bw', role: 'Super Admin', lastActive: 'Today, 2:15 PM' },
-  { id: 2, name: 'Onalenna Kereng', email: 'onalenna@bookacrib.bw', role: 'Content Moderator', lastActive: 'Yesterday' }
-];
-
 export default function AdminManagement() {
-  const [admins, setAdmins] = useState<AdminMember[]>(INITIAL_ADMINS);
+  const [admins, setAdmins] = useState<AdminMember[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newRole, setNewRole] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  const handleAddAdmin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName || !newEmail) return;
-    const newMember: AdminMember = {
-      id: Date.now(),
-      name: newName,
-      email: newEmail,
-      role: 'Content Moderator',
-      lastActive: 'Just now'
+  // Fetch admin staff from Firebase Firestore on load
+  useEffect(() => {
+    const fetchAdmins = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, 'admins'));
+        const fetched: AdminMember[] = [];
+        querySnapshot.forEach((document) => {
+          fetched.push({ id: document.id, ...document.data() } as AdminMember);
+        });
+        setAdmins(fetched);
+      } catch (err) {
+        console.error("Error fetching admin team: ", err);
+      } finally {
+        setLoading(false);
+      }
     };
-    setAdmins([...admins, newMember]);
-    setNewName('');
-    setNewEmail('');
-    setShowAddModal(false);
+
+    fetchAdmins();
+  }, []);
+
+  const handleAddAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newName || !newEmail || !newRole) return;
+
+    try {
+      const newMemberData = {
+        name: newName,
+        email: newEmail,
+        role: newRole,
+        lastActive: 'Just now',
+        createdAt: new Date()
+      };
+
+      // Save to Firebase Firestore 'admins' collection
+      const docRef = await addDoc(collection(db, 'admins'), newMemberData);
+
+      // Update local state instantly
+      setAdmins([...admins, { id: docRef.id, ...newMemberData }]);
+      setNewName('');
+      setNewEmail('');
+      setNewRole('');
+      setShowAddModal(false);
+    } catch (err) {
+      console.error("Error adding admin member: ", err);
+    }
   };
 
-  const handleRemove = (id: number) => {
-    setAdmins(admins.filter(a => a.id !== id));
+  const handleRemove = async (id: string) => {
+    try {
+      // Permanently delete from Firebase Firestore
+      await deleteDoc(doc(db, 'admins', id));
+      
+      // Update local state
+      setAdmins(admins.filter(a => a.id !== id));
+    } catch (err) {
+      console.error("Error removing admin member: ", err);
+    }
   };
 
   return (
@@ -66,6 +104,7 @@ export default function AdminManagement() {
               required 
             />
           </div>
+
           <div className="form-field-group">
             <label className="form-label">Email Address</label>
             <input 
@@ -77,6 +116,19 @@ export default function AdminManagement() {
               required 
             />
           </div>
+
+          <div className="form-field-group">
+            <label className="form-label">Custom Role Title</label>
+            <input 
+              type="text" 
+              placeholder="e.g., Lead Operations Manager" 
+              value={newRole} 
+              onChange={e => setNewRole(e.target.value)} 
+              className="form-input" 
+              required 
+            />
+          </div>
+
           <button type="submit" className="form-submit-btn">Save Staff</button>
           <button type="button" onClick={() => setShowAddModal(false)} className="form-cancel-btn">Cancel</button>
         </form>
@@ -92,33 +144,45 @@ export default function AdminManagement() {
           </tr>
         </thead>
         <tbody>
-          {admins.map(admin => (
-            <tr key={admin.id}>
-              <td>
-                <div className="staff-info-cell">
-                  <Users style={{ width: '1rem', height: '1.125rem', color: 'rgba(0,0,0,0.5)' }} />
-                  <div>
-                    <div className="staff-name">{admin.name}</div>
-                    <div className="staff-email">{admin.email}</div>
+          {loading ? (
+            <tr>
+              <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+                Loading admin team...
+              </td>
+            </tr>
+          ) : admins.length === 0 ? (
+            <tr>
+              <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'rgba(0,0,0,0.5)' }}>
+                No admin staff registered yet. Click "Add Admin Staff" to add team members.
+              </td>
+            </tr>
+          ) : (
+            admins.map(admin => (
+              <tr key={admin.id}>
+                <td>
+                  <div className="staff-info-cell">
+                    <Users style={{ width: '1rem', height: '1.125rem', color: 'rgba(0,0,0,0.5)' }} />
+                    <div>
+                      <div className="staff-name">{admin.name}</div>
+                      <div className="staff-email">{admin.email}</div>
+                    </div>
                   </div>
-                </div>
-              </td>
-              <td>
-                <span className="role-badge">
-                  <Shield style={{ width: '0.625rem', height: '0.625rem' }} />
-                  {admin.role}
-                </span>
-              </td>
-              <td style={{ color: 'rgba(0,0,0,0.6)' }}>{admin.lastActive}</td>
-              <td style={{ textAlign: 'right' }}>
-                {admins.length > 1 && (
+                </td>
+                <td>
+                  <span className="role-badge">
+                    <Shield style={{ width: '0.625rem', height: '0.625rem' }} />
+                    {admin.role}
+                  </span>
+                </td>
+                <td style={{ color: 'rgba(0,0,0,0.6)' }}>{admin.lastActive}</td>
+                <td style={{ textAlign: 'right' }}>
                   <button onClick={() => handleRemove(admin.id)} className="revoke-btn">
                     <Trash2 style={{ width: '0.75rem', height: '0.75rem', display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} /> Revoke
                   </button>
-                )}
-              </td>
-            </tr>
-          ))}
+                </td>
+              </tr>
+            ))
+          )}
         </tbody>
       </table>
     </div>

@@ -44,7 +44,6 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
               <Mail className="admin-input-icon" />
               <input
                 type="email"
-                placeholder="admin@bookacrib.bw"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="admin-auth-input"
@@ -59,7 +58,6 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
               <Lock className="admin-input-icon" />
               <input
                 type="password"
-                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="admin-auth-input"
