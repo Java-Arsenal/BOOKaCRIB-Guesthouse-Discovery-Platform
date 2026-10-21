@@ -3,6 +3,7 @@ import React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+// Active Screen Imports
 import SearchScreen from "../screens/SearchScreen";
 import GuesthouseDetailScreen from "../screens/GuesthouseDetailScreen";
 import ProfileScreen from "../screens/ProfileScreen";
@@ -18,6 +19,7 @@ export default function RootNavigator() {
         initialRouteName="Search"
         screenOptions={{ headerShown: false }}
       >
+        {/* Active Working Screens */}
         <Stack.Screen name="Search" component={SearchScreen} />
         <Stack.Screen
           name="GuesthouseDetailScreen"
