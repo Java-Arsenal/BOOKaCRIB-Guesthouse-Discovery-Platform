@@ -1,22 +1,25 @@
-/* AdminDashboard.css - BOOKaCRIB Brand Aligned */
-
 .admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #FFF1E0; /* Cream background */
+  background-color: #FFF1E0; 
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: #1F1B18; /* Ink primary text */
+  color: #1F1B18; 
 }
 
-/* Sidebar Styling */
+
 .admin-sidebar {
   width: 16rem;
   background-color: #FFFFFF;
-  border-right: 1px solid #E4D3BE; /* Sand border */
+  border-right: 1px solid #E4D3BE; 
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 1.5rem;
+  padding-bottom: 2rem;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  box-sizing: border-box;
 }
 
 .sidebar-brand-container {
@@ -34,7 +37,7 @@
 
 .sidebar-brand-subtitle {
   font-size: 0.75rem;
-  color: #6B5B52; /* Slate secondary text */
+  color: #6B5B52;
   margin: 0.125rem 0 0 0;
 }
 
@@ -78,13 +81,17 @@
 }
 
 .nav-link.active {
-  background-color: #FF5A3C; /* Coral primary active state */
+  background-color: #FF5A3C; 
   color: #FFFFFF;
 }
 
 .sidebar-footer {
   padding-top: 1rem;
   border-top: 1px solid #E4D3BE;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 50;
 }
 
 .sidebar-footer-name {
@@ -100,7 +107,35 @@
   margin: 0;
 }
 
-/* Main Content Styling */
+/* Sign Out Button Styling */
+.sidebar-signout-btn {
+  width: 100%;
+  height: 38px;
+  background-color: #FFF1E0;
+  color: #FF5A3C;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border: 1px solid #E4D3BE;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+  transition: all 0.2s ease;
+  position: relative;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.sidebar-signout-btn:hover {
+  background-color: #FF5A3C;
+  color: #FFFFFF;
+  border-color: #FF5A3C;
+}
+
+
 .admin-main {
   flex: 1;
   display: flex;
@@ -139,14 +174,14 @@
   padding: 0.5rem 0.75rem 0.5rem 2.25rem;
   font-size: 0.875rem;
   border: 1px solid #E4D3BE;
-  border-radius: 9999px; /* Pill search bar per design guide */
+  border-radius: 9999px; 
   outline: none;
   background-color: #FFF1E0;
   color: #1F1B18;
 }
 
 .admin-search-input:focus {
-  border-color: #0F766E; /* Teal active border */
+  border-color: #0F766E; 
   background-color: #FFFFFF;
 }
 
@@ -162,10 +197,10 @@
   height: 48px;
   padding: 0 1.25rem;
   background-color: #FFFFFF;
-  color: #0F766E; /* Teal secondary action text */
+  color: #0F766E;
   font-size: 0.9375rem;
   font-weight: 600;
-  border: 1.5px solid #0F766E; /* Teal secondary border */
+  border: 1.5px solid #0F766E; 
   border-radius: 12px;
   cursor: pointer;
   transition: background 0.2s;
@@ -181,7 +216,7 @@
   gap: 0.375rem;
   height: 48px;
   padding: 0 1.25rem;
-  background-color: #FF5A3C; /* Coral primary action */
+  background-color: #FF5A3C;
   color: #FFFFFF;
   font-size: 0.9375rem;
   font-weight: 600;
@@ -192,7 +227,7 @@
 }
 
 .btn-primary:hover {
-  background-color: #C43E1F; /* Coral Dark */
+  background-color: #C43E1F; 
 }
 
 /* Workspace Grid */
@@ -222,7 +257,7 @@
   margin: 0.25rem 0 0 0;
 }
 
-/* Metrics Grid - 4 Columns */
+
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -237,12 +272,12 @@
 }
 
 .metric-card {
-  background-color: #FFFFFF; /* Surface White card */
-  border: 1px solid #E4D3BE; /* Sand border */
+  background-color: #FFFFFF; 
+  border: 1px solid #E4D3BE; 
   border-radius: 16px;
   padding: 1.5rem;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(31, 27, 24, 0.03); /* Soft warm-tinted shadow */
+  box-shadow: 0 4px 20px rgba(31, 27, 24, 0.03); 
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -268,7 +303,7 @@
 .metric-card-icon {
   width: 1.125rem;
   height: 1.125rem;
-  color: #FF5A3C; /* Coral accent icon */
+  color: #FF5A3C; 
 }
 
 .metric-value {
@@ -445,7 +480,7 @@
 
 .city-pill-btn {
   padding: 0.5rem 1rem;
-  border-radius: 9999px; /* Fully pill-shaped */
+  border-radius: 9999px; 
   font-size: 0.8125rem;
   font-weight: 600;
   cursor: pointer;
@@ -461,12 +496,12 @@
 }
 
 .city-pill-btn.active {
-  background: #FF5A3C; /* Coral fill when active */
+  background: #FF5A3C; 
   color: #FFFFFF;
   border-color: #FF5A3C;
 }
 
-/* Live Customer Reviews Feed */
+
 .reviews-feed-container {
   margin-top: 1rem;
   display: flex;

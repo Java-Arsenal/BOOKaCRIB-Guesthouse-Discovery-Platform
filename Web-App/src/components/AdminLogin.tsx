@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ShieldAlert, Mail, Lock } from 'lucide-react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import '../styling/AdminLogin.css';
 
 interface AdminLoginProps {
@@ -15,11 +16,35 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
     try {
-      await signInWithEmailAndPassword(auth, email, password);
-      setError('');
+      // 1. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const loggedInEmail = userCredential.user.email;
+
+      if (!loggedInEmail) {
+        await signOut(auth);
+        setError('Authentication failed. No email associated with account.');
+        return;
+      }
+
+      // 2. Check if the logged-in email exists in your Firestore 'admins' collection
+      const adminsRef = collection(db, 'admins');
+      const q = query(adminsRef, where('email', '==', loggedInEmail));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        // Not an authorized admin, sign them out immediately
+        await signOut(auth);
+        setError('Access Denied: Your email is not authorized as an administrator.');
+        return;
+      }
+
+      // 3. Authorized admin found, proceed to dashboard
       onSuccess();
     } catch (err: any) {
+      console.error("Login error:", err);
       setError('Invalid admin credentials. Please check your email or password.');
     }
   };
