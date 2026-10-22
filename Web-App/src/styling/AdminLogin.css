@@ -1,104 +1,196 @@
-/* AdminLogin.css */
+/* AdminLogin.css - BOOKaCRIB Brand Aligned */
 
-.admin-auth-wrapper {
-  min-height: 100vh;
+.admin-auth-wrapper,
+.admin-login-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #000000;
-  font-family: system-ui, -apple-system, sans-serif;
-  padding: 1rem;
+  min-height: 100vh;
+  background-color: #FFF1E0; /* Cream background from design guide */
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  padding: 1.5rem;
+  box-sizing: border-box;
 }
 
-.admin-auth-card {
-  background-color: #ffffff;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  border-radius: 1rem;
-  padding: 2.5rem;
+.admin-auth-card,
+.admin-login-card {
   width: 100%;
-  max-width: 26rem;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+  max-width: 420px;
+  background-color: #FFFFFF; /* Surface White card */
+  border: 1px solid #E4D3BE; /* Sand border */
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 10px 30px rgba(31, 27, 24, 0.06); /* Soft warm-tinted shadow */
+  position: relative;
+  z-index: 1;
 }
 
-.admin-auth-header {
+.admin-auth-header,
+.login-brand-header {
   text-align: center;
   margin-bottom: 2rem;
 }
 
-.admin-auth-title {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: #000000;
-  letter-spacing: -0.025em;
-  margin: 0 0 0.25rem 0;
+.admin-auth-logo-container,
+.login-logo-circle {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(255, 90, 60, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1rem auto;
 }
 
-.admin-auth-subtitle {
-  font-size: 0.75rem;
-  color: rgba(0, 0, 0, 0.5);
+.admin-auth-title,
+.login-title {
+  font-family: 'Fraunces', serif; /* Warm editorial serif heading */
+  font-size: 1.75rem;
+  font-weight: 600;
+  color: #1F1B18; /* Ink */
   margin: 0;
+  letter-spacing: -0.025em;
 }
 
-.admin-auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
+.admin-auth-subtitle,
+.login-subtitle {
+  font-size: 0.8125rem;
+  color: #6B5B52; /* Slate secondary text */
+  margin: 0.375rem 0 0 0;
+  font-weight: 500;
 }
 
-.admin-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-}
-
-.admin-input-label {
+.admin-error-box,
+.login-error-banner {
+  background-color: rgba(230, 57, 70, 0.1);
+  color: #E63946; /* Error red */
   font-size: 0.75rem;
-  font-weight: 600;
-  color: #000000;
-}
-
-.admin-auth-input {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  font-size: 0.875rem;
-  border: 1px solid rgba(0, 0, 0, 0.2);
-  border-radius: 0.75rem;
-  outline: none;
-  background-color: #ffffff;
-  color: #000000;
-  transition: border-color 0.2s;
-  box-sizing: border-box;
-}
-
-.admin-auth-input:focus {
-  border-color: #000000;
-}
-
-.admin-auth-btn {
-  width: 100%;
   padding: 0.75rem;
-  background-color: #000000;
-  color: #ffffff;
-  font-size: 0.875rem;
+  border-radius: 8px;
+  margin-bottom: 1.25rem;
+  text-align: center;
   font-weight: 600;
-  border-radius: 0.75rem;
+}
+
+.admin-auth-form,
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem; /* Generous gap to prevent element overlap */
+  position: relative;
+  z-index: 2;
+}
+
+.admin-input-group,
+.form-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-input-label,
+.form-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #1F1B18;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.forgot-link {
+  font-size: 0.75rem;
+  color: #0F766E; /* Deep Teal secondary accent */
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.admin-input-icon-wrapper,
+.input-with-icon {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.admin-input-icon,
+.field-icon {
+  width: 1rem;
+  height: 1rem;
+  position: absolute;
+  left: 1rem;
+  color: #6B5B52;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.admin-auth-input,
+.login-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 1rem 0 2.75rem;
+  font-size: 0.9375rem;
+  background-color: #FFF1E0; /* Cream input background */
+  border: 1px solid #E4D3BE;
+  border-radius: 12px;
+  color: #1F1B18;
+  outline: none;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+}
+
+.admin-auth-input:focus,
+.login-input:focus {
+  border-color: #0F766E; /* Teal focus ring */
+  background-color: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.1);
+}
+
+.admin-auth-btn,
+.login-submit-btn {
+  width: 100%;
+  height: 48px;
+  background-color: #FF5A3C; /* Coral primary action */
+  color: #FFFFFF;
+  font-size: 0.9375rem;
+  font-weight: 600;
   border: none;
+  border-radius: 12px;
   cursor: pointer;
-  transition: background-color 0.2s;
+  position: relative;
+  z-index: 10; /* Forces button above all other layers */
+  pointer-events: auto; /* Guarantees click events register */
+  transition: background-color 0.2s ease, transform 0.1s ease;
   margin-top: 0.5rem;
 }
 
-.admin-auth-btn:hover {
-  background-color: #1f2937;
+.admin-auth-btn:hover,
+.login-submit-btn:hover {
+  background-color: #C43E1F; /* Coral Dark */
 }
 
-.admin-error-box {
-  font-size: 0.75rem;
-  color: #dc2626;
-  background-color: #fef2f2;
-  border: 1px solid #fecaca;
-  padding: 0.5rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
+.admin-auth-btn:active,
+.login-submit-btn:active {
+  transform: scale(0.98);
+}
+
+.login-footer-note {
   text-align: center;
+  font-size: 0.6875rem;
+  color: #6B5B52;
+  margin-top: 2rem;
+  opacity: 0.8;
 }

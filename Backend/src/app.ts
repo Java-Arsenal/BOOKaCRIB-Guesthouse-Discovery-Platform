@@ -11,7 +11,9 @@ import ratingRoutes from './routes/ratings';
 const app = express();
 // Apply security and performance middlewares
 app.use(helmet());
-app.use(cors({ origin: (process.env.CORS_ORIGINS ?? '').split(',').filter(Boolean) }));
+app.use(cors({ 
+  origin: (process.env.CORS_ORIGINS ?? 'http://localhost:5173').split(',').filter(Boolean) 
+}));
 app.use(express.json({ limit: '100kb' }));
 app.use(rateLimit({ windowMs: 15 * 60 * 1000, limit: 300 }));
 // Health check endpoint to verify that the server is running
