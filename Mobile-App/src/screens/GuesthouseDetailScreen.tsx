@@ -1,4 +1,3 @@
-// src/screens/GuesthouseDetailScreen.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -6,11 +5,13 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
+  Linking,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import RatingInput from "../components/RatingInput";
+import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
 
 export default function GuesthouseDetailScreen() {
   const route = useRoute<any>();
@@ -19,15 +20,15 @@ export default function GuesthouseDetailScreen() {
   const guesthouse = route.params?.guesthouse;
   const [rateOpen, setRateOpen] = useState(false);
 
-  const handleBookingAction = () => {
-    Alert.alert(
-      "Booking Initiated",
-      `Would you like to send a reservation request to ${guesthouse?.name}?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        { text: "Confirm", onPress: () => alert("Reservation Request Sent!") },
-      ],
+  const openMaps = () => {
+    const query = encodeURIComponent(
+      `${guesthouse.name}, ${guesthouse.location}, Botswana`,
     );
+    Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
+  };
+
+  const callHost = () => {
+    if (guesthouse.hostPhone) Linking.openURL(`tel:${guesthouse.hostPhone}`);
   };
 
   if (!guesthouse) {
@@ -39,77 +40,135 @@ export default function GuesthouseDetailScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
-      <View style={styles.headerNavBar}>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.topBar}>
         <TouchableOpacity
-          style={styles.backButtonAction}
           onPress={() => navigation.goBack()}
+          style={styles.circleBtn}
+          hitSlop={8}
         >
-          <Text style={styles.backButtonText}>⬅ Back</Text>
+          <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
-        <Text style={styles.headerTitleLabel} numberOfLines={1}>
-          {guesthouse.name}
-        </Text>
       </View>
 
-      <ScrollView style={styles.detailsMainContainer}>
-        <View style={styles.imageBlockMock} />
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
+        <View style={styles.imageBlock} />
 
-        <View style={styles.detailsContentBody}>
-          <Text style={styles.titleText}>{guesthouse.name}</Text>
-          <Text style={styles.locationSubText}>
-            📍 {guesthouse.location}, Botswana
-          </Text>
-
-          <View style={styles.ratingPriceRow}>
-            <Text style={styles.ratingLabel}>
-              ⭐ {guesthouse.rating} ({guesthouse.reviewsCount || 12} reviews)
-            </Text>
-            <Text style={styles.roomsLabel}>
-              🛏️ {guesthouse.availableRooms} rooms left
+        {/* Main card */}
+        <View style={styles.card}>
+          {guesthouse.isSuperhost && (
+            <View style={styles.superhostBadge}>
+              <Ionicons name="shield-checkmark" size={12} color={colors.teal} />
+              <Text style={styles.superhostText}>SUPERHOST MANAGED</Text>
+            </View>
+          )}
+          <Text style={styles.title}>{guesthouse.name}</Text>
+          <View style={styles.row}>
+            <Ionicons name="location-outline" size={15} color={colors.slate} />
+            <Text style={styles.locationText}>
+              {guesthouse.location}, Botswana
             </Text>
           </View>
 
-          <View style={styles.dividerLine} />
+          <View
+            style={[styles.row, { marginTop: spacing.md, gap: spacing.sm }]}
+          >
+            <View style={styles.pill}>
+              <Ionicons name="star" size={14} color={colors.gold} />
+              <Text style={styles.pillText}>
+                {guesthouse.rating} ({guesthouse.reviewsCount || 12} reviews)
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.pill}
+              onPress={() => setRateOpen(true)}
+            >
+              <Ionicons
+                name="chatbox-ellipses-outline"
+                size={14}
+                color={colors.coral}
+              />
+              <Text style={[styles.pillText, { color: colors.coral }]}>
+                + Rate this Guesthouse
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-          <Text style={styles.sectionHeaderTitle}>Description</Text>
-          <Text style={styles.bodyDescriptionText}>
-            {guesthouse.description}
-          </Text>
+          <View style={styles.priceBox}>
+            <View style={styles.priceTop}>
+              <Text style={styles.price}>
+                P{guesthouse.pricePerNight}{" "}
+                <Text style={styles.perNight}>/ night</Text>
+              </Text>
+              <View style={styles.zeroFee}>
+                <Text style={styles.zeroFeeText}>Zero Booking Fee</Text>
+              </View>
+            </View>
+            <Text style={styles.priceNote}>
+              Pay host directly upon arrival. No middleman or platform markups.
+            </Text>
+          </View>
+        </View>
 
-          {/* 👑 GROUNDED PLACEMENT: Amenities now render exclusively here in the detail overview panel */}
-          <Text style={styles.sectionHeaderTitle}>Amenities Included</Text>
-          <View style={styles.amenitiesWrapperRow}>
+        {/* Host card */}
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Ionicons
+              name="person-circle-outline"
+              size={36}
+              color={colors.slate}
+            />
+            <View style={{ marginLeft: spacing.sm }}>
+              <Text style={styles.hostName}>
+                {guesthouse.hostName || "Your host"}
+              </Text>
+              <Text style={styles.hostRole}>Host</Text>
+            </View>
+          </View>
+          {guesthouse.hostPhone ? (
+            <TouchableOpacity style={styles.callBtn} onPress={callHost}>
+              <Ionicons name="call-outline" size={16} color={colors.coral} />
+              <Text style={styles.callText}>
+                Call Host ({guesthouse.hostPhone})
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Text style={styles.priceNote}>
+              Host contact details coming soon.
+            </Text>
+          )}
+        </View>
+
+        {/* About */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>About the Guesthouse</Text>
+          <Text style={styles.body}>{guesthouse.description}</Text>
+        </View>
+
+        {/* Amenities */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Key Amenities</Text>
+          <View style={styles.amenityWrap}>
             {guesthouse.amenities.map((amenity: string, index: number) => (
-              <View key={index} style={styles.amenityChipItem}>
-                <Text style={styles.amenityChipText}>{amenity}</Text>
+              <View key={index} style={styles.amenityChip}>
+                <Text style={styles.amenityText}>{amenity}</Text>
               </View>
             ))}
           </View>
+        </View>
 
-          <TouchableOpacity
-            style={styles.rateButton}
-            onPress={() => setRateOpen(true)}
-          >
-            <Text style={styles.rateButtonText}>Rate this stay</Text>
-          </TouchableOpacity>
+        {/* Location */}
+        <View style={styles.card}>
+          <View style={styles.locationHeader}>
+            <Text style={styles.sectionTitle}>Location</Text>
+            <TouchableOpacity style={styles.pill} onPress={openMaps}>
+              <Ionicons name="compass-outline" size={14} color={colors.ink} />
+              <Text style={styles.pillText}>Google Maps</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.body}>{guesthouse.location}, Botswana</Text>
         </View>
       </ScrollView>
-
-      <View style={styles.stickyBookingStickyFooter}>
-        <View style={styles.footerPriceBlock}>
-          <Text style={styles.footerPriceLabel}>
-            P{guesthouse.pricePerNight}
-          </Text>
-          <Text style={styles.footerSubText}>total / night</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.ctaPrimaryButton}
-          onPress={handleBookingAction}
-        >
-          <Text style={styles.ctaButtonText}>Book Now</Text>
-        </TouchableOpacity>
-      </View>
 
       <RatingInput
         visible={rateOpen}
@@ -122,109 +181,146 @@ export default function GuesthouseDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeContainer: { flex: 1, backgroundColor: "#ffffff" },
-  headerNavBar: {
-    height: 56,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderColor: "#f1f3f4",
-    backgroundColor: "#ffffff",
-  },
-  backButtonAction: { paddingRight: 16, paddingVertical: 8 },
-  backButtonText: { fontSize: 15, color: "#1a73e8", fontWeight: "600" },
-  headerTitleLabel: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#202124",
-    flex: 1,
-  },
-  detailsMainContainer: { flex: 1 },
+  safe: { flex: 1, backgroundColor: colors.cream },
   centerFallbackContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor: colors.cream,
   },
-  fallbackText: { color: "#5f6368", fontSize: 15 },
-  imageBlockMock: { height: 220, backgroundColor: "#f1f3f4" },
-  detailsContentBody: { padding: 20 },
-  titleText: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#202124",
-    marginBottom: 6,
-  },
-  locationSubText: { fontSize: 15, color: "#5f6368", marginBottom: 16 },
-  ratingPriceRow: {
+  fallbackText: { color: colors.slate, fontSize: 15, fontFamily: fonts.body },
+
+  topBar: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  ratingLabel: { fontSize: 14, fontWeight: "600", color: "#202124" },
-  roomsLabel: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#d93025",
-    backgroundColor: "#fce8e6",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  dividerLine: { height: 1, backgroundColor: "#f1f3f4", marginVertical: 16 },
-  sectionHeaderTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#202124",
-    marginBottom: 8,
-    marginTop: 8,
-  },
-  bodyDescriptionText: {
-    fontSize: 15,
-    color: "#3c4043",
-    lineHeight: 22,
-    marginBottom: 16,
-  },
-  amenitiesWrapperRow: { flexDirection: "row", flexWrap: "wrap", marginTop: 4 },
-  amenityChipItem: {
-    backgroundColor: "#f8f9fa",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    marginRight: 8,
-    marginBottom: 8,
+  circleBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: "#e0e0e0",
-  },
-  amenityChipText: { fontSize: 13, color: "#3c4043", fontWeight: "500" },
-  rateButton: {
-    marginTop: 8,
-    height: 48,
-    backgroundColor: "#1a73e8",
-    borderRadius: 24,
+    borderColor: colors.sand,
     alignItems: "center",
     justifyContent: "center",
   },
-  rateButtonText: { color: "#ffffff", fontWeight: "700", fontSize: 15 },
-  stickyBookingStickyFooter: {
+  imageBlock: {
+    height: 200,
+    backgroundColor: colors.sand,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.card,
+  },
+
+  card: {
+    backgroundColor: colors.white,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    ...shadow,
+  },
+  row: { flexDirection: "row", alignItems: "center", gap: 4 },
+  superhostBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: colors.sand,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: spacing.sm,
+  },
+  superhostText: { fontSize: 10, fontFamily: fonts.bold, color: colors.teal },
+  title: {
+    fontSize: 24,
+    fontFamily: fonts.display,
+    color: colors.ink,
+    marginBottom: 4,
+  },
+  locationText: { fontSize: 14, fontFamily: fonts.body, color: colors.slate },
+
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    backgroundColor: colors.white,
+  },
+  pillText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink },
+
+  priceBox: {
+    marginTop: spacing.md,
+    padding: 12,
+    borderRadius: radius.control,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    backgroundColor: colors.cream,
+  },
+  priceTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderColor: "#f1f3f4",
-    backgroundColor: "#ffffff",
   },
-  footerPriceBlock: { flexDirection: "column" },
-  footerPriceLabel: { fontSize: 22, fontWeight: "800", color: "#202124" },
-  footerSubText: { fontSize: 12, color: "#5f6368", marginTop: 2 },
-  ctaPrimaryButton: {
-    backgroundColor: "#1a73e8",
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 8,
+  price: { fontSize: 22, fontFamily: fonts.display, color: colors.ink },
+  perNight: { fontSize: 12, fontFamily: fonts.body, color: colors.slate },
+  zeroFee: {
+    borderWidth: 1,
+    borderColor: colors.teal,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  ctaButtonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  zeroFeeText: { fontSize: 11, fontFamily: fonts.semibold, color: colors.teal },
+  priceNote: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: colors.slate,
+    marginTop: 8,
+  },
+
+  hostName: { fontSize: 15, fontFamily: fonts.semibold, color: colors.ink },
+  hostRole: { fontSize: 12, fontFamily: fonts.body, color: colors.slate },
+  callBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: spacing.md,
+  },
+  callText: { fontSize: 14, fontFamily: fonts.semibold, color: colors.coral },
+
+  sectionTitle: {
+    fontSize: 17,
+    fontFamily: fonts.display,
+    color: colors.ink,
+    marginBottom: 8,
+  },
+  body: {
+    fontSize: 14,
+    fontFamily: fonts.body,
+    color: colors.slate,
+    lineHeight: 22,
+  },
+  amenityWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  amenityChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.sand,
+  },
+  amenityText: { fontSize: 13, fontFamily: fonts.body, color: colors.ink },
+  locationHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
 });
