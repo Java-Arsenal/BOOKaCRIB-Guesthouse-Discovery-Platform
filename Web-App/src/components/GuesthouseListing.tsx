@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Building2, Search, Trash2, Star, MapPin } from 'lucide-react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { getGuesthouses, deleteGuesthouse } from '../services/api';
 import '../styling/GuesthouseListing.css';
 
 interface Guesthouse {
@@ -23,42 +22,67 @@ export default function GuesthouseListing() {
   useEffect(() => {
     async function fetchListings() {
       try {
-        const querySnapshot = await getDocs(collection(db, 'guesthouses'));
-        const items: Guesthouse[] = querySnapshot.docs.map(document => ({
-          id: document.id,
-          ...document.data()
-        })) as Guesthouse[];
-        setListings(items);
+        const items = await getGuesthouses();
+        setListings(
+          items.map((item: any) => ({
+            id: item.id || item.guesthouse_id,
+            name: item.name || 'Unnamed Property',
+            // `getGuesthouses()` already normalizes these to string/number,
+            // but keep the fallbacks here in case the API contract shifts.
+            location:
+              (typeof item.location === 'string' && item.location) ||
+              item.city ||
+              'Palapye',
+            price: Number(item.price ?? item.price_per_night_bwp ?? 0),
+            // `average_rating` is the canonical field; `rating` supports
+            // legacy/admin-registered docs that only wrote the short name.
+            rating: Number(item.average_rating ?? item.rating ?? 0),
+            // Canonical field is `reviewsCount`; `rating_count` is legacy.
+            reviewsCount: Number(item.reviewsCount ?? item.rating_count ?? 0),
+            badge: item.badge,
+          })),
+        );
       } catch (error) {
         console.error("Error fetching guesthouses: ", error);
       } finally {
         setLoading(false);
       }
     }
-
     fetchListings();
   }, []);
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'guesthouses', id));
+      await deleteGuesthouse(id);
       setListings(prev => prev.filter(item => item.id !== id));
     } catch (error) {
       console.error("Error deleting guesthouse: ", error);
+      alert('Failed to delete guesthouse. Make sure you are signed in as an admin.');
     }
   };
 
+  // Derive the city dropdown from actual data instead of a hardcoded list.
+  // That way new cities show up automatically, and no empty options.
+  const availableLocations = ['All', ...Array.from(new Set(
+    listings.map(item => item.location).filter(Boolean)
+  )).sort()];
+
   const filteredListings = listings.filter(item => {
-    const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.location.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesLocation = selectedLocation === 'All' || item.location === selectedLocation;
+    const search = searchTerm.toLowerCase();
+    const matchesSearch =
+      (item.name || '').toLowerCase().includes(search) ||
+      (item.location || '').toLowerCase().includes(search);
+    const matchesLocation =
+      selectedLocation === 'All' || item.location === selectedLocation;
     return matchesSearch && matchesLocation;
   });
 
   if (loading) {
     return (
       <div className="listings-wrapper">
-        <p style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(0,0,0,0.6)' }}>Loading live database inventory...</p>
+        <p style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(0,0,0,0.6)' }}>
+          Loading live database inventory...
+        </p>
       </div>
     );
   }
@@ -68,7 +92,9 @@ export default function GuesthouseListing() {
       <div className="listings-header">
         <div>
           <h2 className="listings-title">Guesthouse Inventory Management</h2>
-          <p className="listings-subtitle">Review, manage, and filter registered stays across Botswana (Firestore Live)</p>
+          <p className="listings-subtitle">
+            Review, manage, and filter registered stays across Botswana (Live Backend)
+          </p>
         </div>
 
         <div className="listings-controls">
@@ -88,11 +114,9 @@ export default function GuesthouseListing() {
             onChange={e => setSelectedLocation(e.target.value)}
             className="filter-select"
           >
-            <option value="All">All Locations</option>
-            <option value="Palapye">Palapye</option>
-            <option value="Gaborone">Gaborone</option>
-            <option value="Maun">Maun</option>
-            <option value="Francistown">Francistown</option>
+            {availableLocations.map(city => (
+              <option key={city} value={city}>{city}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -124,22 +148,38 @@ export default function GuesthouseListing() {
                   <td>
                     <span className="location-cell-flex">
                       <MapPin className="location-cell-icon" />
-                      {item.location}
+                      {item.location || 'Palapye'}
                     </span>
                   </td>
                   <td>
-                    {item.badge ? <span className="badge-pill">{item.badge}</span> : <span className="standard-badge-text">Standard</span>}
+                    {item.badge
+                      ? <span className="badge-pill">{item.badge}</span>
+                      : <span className="standard-badge-text">Standard</span>}
                   </td>
                   <td className="table-cell-bold">P{item.price} / night</td>
                   <td>
                     <span className="rating-cell-flex">
                       <Star className="rating-star-icon" />
-                      {item.rating} <span className="rating-count-sub">({item.reviewsCount})</span>
+                      {item.rating ?? 0}{' '}
+                      <span className="rating-count-sub">({item.reviewsCount ?? 0})</span>
                     </span>
                   </td>
                   <td className="table-actions-cell">
-                    <button onClick={() => handleDelete(item.id)} className="action-btn-danger" title="Remove listing">
-                      <Trash2 style={{ width: '0.75rem', height: '0.75rem', display: 'inline', verticalAlign: 'middle', marginRight: '2px' }} /> Remove
+                    <button
+                      onClick={() => handleDelete(item.id)}
+                      className="action-btn-danger"
+                      title="Remove listing"
+                    >
+                      <Trash2
+                        style={{
+                          width: '0.75rem',
+                          height: '0.75rem',
+                          display: 'inline',
+                          verticalAlign: 'middle',
+                          marginRight: '2px',
+                        }}
+                      />{' '}
+                      Remove
                     </button>
                   </td>
                 </tr>

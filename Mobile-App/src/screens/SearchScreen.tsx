@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import React, { useState } from "react";
 import {
   View,
@@ -10,6 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import { apiGet } from "../api/client";
 import SearchBar from "../components/SearchBar";
 import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
 
@@ -111,46 +113,46 @@ function SearchResultCard({
   );
 }
 
-const ENHANCED_DATA: Guesthouse[] = [
-  {
-    id: "1",
-    name: "Acacia Student & Guest Lodge",
-    location: "Palapye",
-    pricePerNight: 280,
-    availableRooms: 4,
-    rating: 4.3,
-    reviewsCount: 19,
-    description: "Affordable accommodation tailor-made for students.",
-    amenities: ["📶 Free WiFi", "🪑 Desk", "🍳 Kitchenette"],
-  },
-  {
-    id: "2",
-    name: "Mokolodi Haven Retreat",
-    location: "Gaborone",
-    pricePerNight: 340,
-    availableRooms: 2,
-    rating: 4.9,
-    reviewsCount: 42,
-    description: "Handpicked cozy stay ready for fast booking.",
-    amenities: ["📶 Fast Wi-Fi", "❄️ AC", "🅿️ Free Parking"],
-  },
-  {
-    id: "3",
-    name: "Serenity Palms Guesthouse",
-    location: "Gaborone Central",
-    pricePerNight: 420,
-    availableRooms: 5,
-    rating: 4.85,
-    reviewsCount: 38,
-    description: "Lush courtyard garden and private plunge pool.",
-    amenities: ["📶 WiFi", "❄️ Aircon", "☀️ Solar Backup"],
-  },
-];
-
 export default function SearchScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilter, setActiveFilter] = useState("cheapest");
   const [selectedCity, setSelectedCity] = useState("all");
+  const [listings, setListings] = useState<Guesthouse[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const data = await apiGet("/guesthouses");
+        if (cancelled) return;
+        setListings(
+          data.map((item: any) => ({
+            id: item.guesthouse_id ?? item.id,
+            name: item.name,
+            location: item.city ?? item.location ?? "Botswana",
+            pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
+            availableRooms: 0,
+            rating: item.average_rating ?? 0,
+            reviewsCount: item.rating_count ?? 0,
+            description: item.description ?? "",
+            amenities: item.amenities ?? [],
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to load guesthouses:", error);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  let processedData = listings.filter(
+    (item) =>
 
   let processedData = ENHANCED_DATA.filter(
     (item) =>
@@ -184,6 +186,18 @@ export default function SearchScreen({ navigation }: any) {
       ? selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)
       : "Botswana";
   const summary = `${SORTS.find((s) => s.key === activeFilter)?.summary} · ${processedData.length} results in ${region}`;
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+          <Text style={{ fontFamily: fonts.body, color: colors.slate }}>
+            Loading guesthouses...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
