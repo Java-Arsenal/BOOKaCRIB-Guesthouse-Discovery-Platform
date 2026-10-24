@@ -35,7 +35,6 @@ export default function GuesthouseListing() {
         setLoading(false);
       }
     }
-
     fetchListings();
   }, []);
 
@@ -50,7 +49,7 @@ export default function GuesthouseListing() {
 
   const filteredListings = listings.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.location.toLowerCase().includes(searchTerm.toLowerCase());
+                          (item.location && item.location.toLowerCase().includes(searchTerm.toLowerCase()));
     const matchesLocation = selectedLocation === 'All' || item.location === selectedLocation;
     return matchesSearch && matchesLocation;
   });
@@ -93,6 +92,11 @@ export default function GuesthouseListing() {
             <option value="Gaborone">Gaborone</option>
             <option value="Maun">Maun</option>
             <option value="Francistown">Francistown</option>
+            <option value="Kasane">Kasane</option>
+            <option value="Serowe">Serowe</option>
+            <option value="Lobatse">Lobatse</option>
+            <option value="Molepolole">Molepolole</option>
+            <option value="Selibe Phikwe">Selibe Phikwe</option>
           </select>
         </div>
       </div>
@@ -124,7 +128,7 @@ export default function GuesthouseListing() {
                   <td>
                     <span className="location-cell-flex">
                       <MapPin className="location-cell-icon" />
-                      {item.location}
+                      {item.location || 'Palapye'}
                     </span>
                   </td>
                   <td>
@@ -134,7 +138,7 @@ export default function GuesthouseListing() {
                   <td>
                     <span className="rating-cell-flex">
                       <Star className="rating-star-icon" />
-                      {item.rating} <span className="rating-count-sub">({item.reviewsCount})</span>
+                      {item.rating ?? 0} <span className="rating-count-sub">({item.reviewsCount ?? 0})</span>
                     </span>
                   </td>
                   <td className="table-actions-cell">

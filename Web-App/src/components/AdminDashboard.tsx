@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Building2, PlusCircle, Users, Search, Download, Plus, Building, MapPin, Star, ChevronRight, TrendingUp, SlidersHorizontal, MessageSquare } from 'lucide-react';
-import { getGuesthouses } from '../services/api'; // Connected to Node.js backend API
+import { collection, getDocs } from 'firebase/firestore'; 
+import { getAuth, signOut } from 'firebase/auth';
+import { db } from '../firebase';
 import RegisterGuesthouse from './RegisterGuesthouse';
 import GuesthouseListing from './GuesthouseListing';
 import AdminManagement from './AdminManagement';
@@ -23,7 +25,7 @@ interface Review {
   id: string;
   guesthouseName: string;
   customerName: string;
-  rating: number;
+  rating?: number;
   comment: string;
   date: string;
 }
@@ -32,29 +34,32 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<'overview' | 'register' | 'listings' | 'management'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('All');
+  const [sortByPrice, setSortByPrice] = useState<'default' | 'asc' | 'desc'>('default');
+  const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
   
   const [guesthouses, setGuesthouses] = useState<Guesthouse[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch data from Node.js Backend API instead of direct client-side Firebase
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const data = await getGuesthouses();
+        const querySnapshot = await getDocs(collection(db, 'guesthouses'));
         
-        // Normalize fields to handle backend API keys and properly parse prices & ratings
-        const normalizedData: Guesthouse[] = (Array.isArray(data) ? data : []).map((item: any) => ({
-          id: item.id || item._id,
-          name: item.name || 'Unnamed Property',
-          location: item.city || item.location || 'Palapye',
-          price: Number(item.price_per_night_bwp ?? item.price ?? 0),
-          badge: item.badge || 'Premier Rated',
-          rating: Number(item.rating || 4.8),
-          reviewsCount: Number(item.reviewsCount || 2), // Gives a default count so quality scores render
-          createdAt: item.createdAt
-        }));
+        const normalizedData: Guesthouse[] = querySnapshot.docs.map(document => {
+          const item = document.data() as any;
+          return {
+            id: document.id,
+            name: item.name || 'Unnamed Property',
+            location: item.location || 'Palapye',
+            price: Number(item.price ?? 0),
+            badge: item.badge || 'Premier Rated',
+            rating: Number(item.rating ?? 0),
+            reviewsCount: Number(item.reviewsCount ?? 0),
+            createdAt: item.createdAt
+          };
+        });
 
         setGuesthouses(normalizedData);
 
@@ -63,7 +68,7 @@ export default function AdminDashboard() {
             id: `${g.id}-rev`,
             guesthouseName: g.name,
             customerName: "Onalenna K.",
-            rating: g.rating ?? 5.0,
+            rating: Number(g.rating ?? 0),
             comment: "Amazing peaceful stay, clean rooms, and great location!",
             date: "Today"
           }] : []
@@ -71,7 +76,7 @@ export default function AdminDashboard() {
         setReviews(mockReviews);
 
       } catch (err) {
-        console.error("Error fetching dashboard inventory from Node.js backend: ", err);
+        console.error("Error fetching dashboard inventory from Firebase: ", err);
       } finally {
         setLoading(false);
       }
@@ -79,6 +84,16 @@ export default function AdminDashboard() {
 
     fetchDashboardData();
   }, [activeView]);
+
+  const handleSignOut = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+      window.location.href = '/';
+    } catch (error) {
+      console.error("Error signing out: ", error);
+    }
+  };
 
   const totalListings = guesthouses.length;
   const availableCities = ['All', ...Array.from(new Set(guesthouses.map(g => g.location || 'Palapye')))];
@@ -104,7 +119,6 @@ export default function AdminDashboard() {
     ? Math.round(hubStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / hubStays.length) 
     : 0;
 
-  // --- Price Analytics Calculations ---
   const allPrices = guesthouses.map(g => g.price ?? 0);
   const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
   const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 0;
@@ -139,10 +153,18 @@ export default function AdminDashboard() {
   };
 
   const filteredGuesthouses = guesthouses.filter(g => {
-    const loc = g.location || 'Palapye';
-    const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase()) || loc.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCity = selectedCityFilter === 'All' || loc === selectedCityFilter;
-    return matchesSearch && matchesCity;
+    const loc = (g.location || 'Palapye').trim().toLowerCase();
+    const currentFilter = selectedCityFilter.trim().toLowerCase();
+
+    const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase()) || loc.includes(searchQuery.toLowerCase());
+    const matchesCity = selectedCityFilter === 'All' || loc === currentFilter;
+    const matchesRating = (g.rating ?? 0) >= minRatingFilter;
+
+    return matchesSearch && matchesCity && matchesRating;
+  }).sort((a, b) => {
+    if (sortByPrice === 'asc') return (a.price ?? 0) - (b.price ?? 0);
+    if (sortByPrice === 'desc') return (b.price ?? 0) - (a.price ?? 0);
+    return 0;
   });
 
   return (
@@ -172,8 +194,11 @@ export default function AdminDashboard() {
         </div>
 
         <div className="sidebar-footer">
-          <p className="sidebar-footer-name">Winonah Monare</p>
+          <p className="sidebar-footer-name">admin@bookacrib.bw</p>
           <p className="sidebar-footer-role">Management Portal</p>
+          <button onClick={handleSignOut} className="sidebar-signout-btn">
+            Sign Out
+          </button>
         </div>
       </aside>
 
@@ -186,7 +211,6 @@ export default function AdminDashboard() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="admin-search-input"
-              placeholder="Search properties, hosts, reviews..."
             />
           </div>
           <div className="admin-header-actions">
@@ -214,20 +238,53 @@ export default function AdminDashboard() {
               </p>
             </div>
 
-            {/* City Quick-Filter Pills */}
             <div className="city-pills-container">
-              {availableCities.map(city => (
-                <button
-                  key={city}
-                  onClick={() => setSelectedCityFilter(city)}
-                  className={`city-pill-btn ${selectedCityFilter === city ? 'active' : ''}`}
-                >
-                  {city} {city !== 'All' && `(${guesthouses.filter(g => (g.location || 'Palapye') === city).length})`}
-                </button>
-              ))}
+              {availableCities.map(city => {
+                const cityCount = city === 'All' 
+                  ? guesthouses.length 
+                  : guesthouses.filter(g => (g.location || 'Palapye').trim().toLowerCase() === city.trim().toLowerCase()).length;
+                
+                return (
+                  <button
+                    key={city}
+                    onClick={() => setSelectedCityFilter(city)}
+                    className={`city-pill-btn ${selectedCityFilter.trim().toLowerCase() === city.trim().toLowerCase() ? 'active' : ''}`}
+                  >
+                    {city} {city !== 'All' && `(${cityCount})`}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Metrics Grid */}
+            <div className="filters-container">
+              <div className="filter-group">
+                <label className="filter-label">Sort by Price:</label>
+                <select 
+                  value={sortByPrice} 
+                  onChange={(e) => setSortByPrice(e.target.value as any)}
+                  className="filter-select"
+                >
+                  <option value="default">Default Order</option>
+                  <option value="asc">Price: Low to High (Cheapest first)</option>
+                  <option value="desc">Price: High to Low</option>
+                </select>
+              </div>
+
+              <div className="filter-group">
+                <label className="filter-label">Min Rating:</label>
+                <select 
+                  value={minRatingFilter} 
+                  onChange={(e) => setMinRatingFilter(Number(e.target.value))}
+                  className="filter-select"
+                >
+                  <option value="0">All Ratings</option>
+                  <option value="3">★ 3.0 & above</option>
+                  <option value="4">★ 4.0 & above</option>
+                  <option value="4.5">★ 4.5 & above</option>
+                </select>
+              </div>
+            </div>
+
             <div className="metrics-grid">
               <div className="metric-card" onClick={() => setActiveView('listings')}>
                 <div className="metric-card-top-flex">
@@ -237,7 +294,7 @@ export default function AdminDashboard() {
                 <div className="metric-value">{loading ? '...' : totalListings}</div>
                 <div className="metric-footer">
                   <span className="metric-trend-label">
-                    <TrendingUp className="trend-icon" /> Node.js API
+                    <TrendingUp className="trend-icon" /> Firebase Live
                   </span>
                   <span>{totalListings === 0 ? 'No listings yet' : `${totalListings} active stays`}</span>
                 </div>
@@ -278,7 +335,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Nightly Rate Analytics Card */}
               <div className="metric-card" onClick={() => setActiveView('listings')}>
                 <div className="metric-card-top-flex">
                   <span className="metric-title">Nightly Rate Analytics</span>
@@ -295,7 +351,6 @@ export default function AdminDashboard() {
             </div>
 
             <div className="split-sections">
-              {/* Clickable City Distribution Card */}
               <div 
                 className="admin-card clickable-card" 
                 onClick={() => {
@@ -303,8 +358,6 @@ export default function AdminDashboard() {
                     setSelectedCityFilter(dominantHub);
                   }
                 }}
-                style={{ cursor: 'pointer' }}
-                title="Click to filter inventory by dominant hub"
               >
                 <div className="city-dist-header">
                   <h3 className="city-dist-title">City Distribution</h3>
@@ -327,7 +380,6 @@ export default function AdminDashboard() {
                 )}
               </div>
 
-              {/* Live Customer Reviews Card */}
               <div className="admin-card">
                 <div className="onboard-header-flex">
                   <div>
@@ -347,7 +399,7 @@ export default function AdminDashboard() {
                       <div key={rev.id} className="review-bubble">
                         <div className="review-bubble-header">
                           <span>{rev.guesthouseName}</span>
-                          <span className="review-stars">★ {rev.rating.toFixed(1)}</span>
+                          <span className="review-stars">★ {(rev.rating ?? 0).toFixed(1)}</span>
                         </div>
                         <p className="review-comment-text">"{rev.comment}"</p>
                         <div className="review-meta-text">By {rev.customerName} • {rev.date}</div>
