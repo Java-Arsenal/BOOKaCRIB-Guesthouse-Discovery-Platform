@@ -93,6 +93,8 @@ async function seed() {
       ...g,
       created_by: 'seed-script',
       average_rating: 0,
+      rating_sum: 0,
+      rating_count: 0,
       logo_url: null,
       gallery_urls: [],
       created_at: FieldValue.serverTimestamp(),

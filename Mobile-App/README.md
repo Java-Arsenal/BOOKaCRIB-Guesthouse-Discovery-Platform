@@ -75,3 +75,4 @@ Scan the QR code with Expo Go (or run on a simulator) to launch the app.
 - Firestore offline persistence is built into the client SDK  previously loaded listings stay viewable offline and re-sync automatically, no extra setup needed.
 - Rating submission and edits both go through the same backend endpoint (`rating_id = {customer_id}_{guesthouse_id}` means a second submission overwrites the first).
 - All writes go through the backend API never write to Firestore directly.
+- The API client appends `/api` to this base URL; authenticated favourites requests use the signed-in Firebase customer's ID token.

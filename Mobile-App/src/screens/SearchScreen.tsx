@@ -18,6 +18,8 @@ export interface Guesthouse {
   id: string;
   name: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   pricePerNight: number;
   availableRooms: number;
   rating: number;
@@ -87,7 +89,7 @@ function SearchResultCard({
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.gold} />
             <Text style={styles.ratingText}>
-              {item.rating} ({item.reviewsCount || 12})
+              {item.rating} ({item.reviewsCount ?? 0})
             </Text>
           </View>
         </View>
@@ -129,7 +131,17 @@ export default function SearchScreen({ navigation }: any) {
           data.map((item: any) => ({
             id: item.guesthouse_id ?? item.id,
             name: item.name,
-            location: item.city ?? item.location ?? "Botswana",
+            location:
+              item.city ??
+              (typeof item.location === "string" ? item.location : "Botswana"),
+            latitude:
+              typeof item.location?.latitude === "number"
+                ? item.location.latitude
+                : undefined,
+            longitude:
+              typeof item.location?.longitude === "number"
+                ? item.location.longitude
+                : undefined,
             pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
             availableRooms: 0,
             rating: item.average_rating ?? 0,

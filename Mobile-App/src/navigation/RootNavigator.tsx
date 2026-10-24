@@ -8,6 +8,7 @@ import SearchScreen from "../screens/SearchScreen";
 import GuesthouseDetailScreen from "../screens/GuesthouseDetailScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import MyRatingsScreen from "../screens/MyRatingsScreen";
+import FavoritesScreen from "../screens/FavoritesScreen";
 import ComingSoonScreen from "../screens/ComingSoonScreen";
 
 const Stack = createNativeStackNavigator();
@@ -37,7 +38,7 @@ export default function RootNavigator() {
         />
         <Stack.Screen
           name="Favourites"
-          component={ComingSoonScreen}
+          component={FavoritesScreen}
           options={{ headerShown: true, title: "Favourites" }}
         />
         <Stack.Screen
