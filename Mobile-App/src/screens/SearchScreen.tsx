@@ -153,9 +153,6 @@ export default function SearchScreen({ navigation }: any) {
 
   let processedData = listings.filter(
     (item) =>
-
-  let processedData = ENHANCED_DATA.filter(
-    (item) =>
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.location.toLowerCase().includes(searchQuery.toLowerCase()),
   );
@@ -190,7 +187,9 @@ export default function SearchScreen({ navigation }: any) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <Text style={{ fontFamily: fonts.body, color: colors.slate }}>
             Loading guesthouses...
           </Text>
