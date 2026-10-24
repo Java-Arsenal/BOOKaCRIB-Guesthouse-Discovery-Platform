@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { LayoutDashboard, Building2, PlusCircle, Users, Search, Download, Plus, Building, MapPin, Star, ChevronRight, TrendingUp, SlidersHorizontal, MessageSquare } from 'lucide-react';
-import { collection, getDocs } from 'firebase/firestore'; 
+import { collection, getDocs } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { db } from '../firebase';
 import RegisterGuesthouse from './RegisterGuesthouse';
@@ -11,7 +11,9 @@ import '../styling/AdminDashboard.css';
 interface Guesthouse {
   id: string;
   name: string;
-  city?: string;
+  /** Display string (city name). The real schema has `city` as the string and
+   *  `location` as { latitude, longitude } — the mapper flattens `city` into
+   *  this field so the rest of the component can treat it as a plain string. */
   location?: string;
   price_per_night_bwp?: number;
   price?: number;
@@ -36,7 +38,7 @@ export default function AdminDashboard() {
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('All');
   const [sortByPrice, setSortByPrice] = useState<'default' | 'asc' | 'desc'>('default');
   const [minRatingFilter, setMinRatingFilter] = useState<number>(0);
-  
+
   const [guesthouses, setGuesthouses] = useState<Guesthouse[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,31 +48,47 @@ export default function AdminDashboard() {
       try {
         setLoading(true);
         const querySnapshot = await getDocs(collection(db, 'guesthouses'));
-        
+
         const normalizedData: Guesthouse[] = querySnapshot.docs.map(document => {
           const item = document.data() as any;
+
+          // Real schema (SCHEMA.md):
+          //   city:                 string  ("Maun", "Kang", ...)
+          //   location:             { latitude: number, longitude: number }
+          //   price_per_night_bwp:  number
+          //   average_rating:       number
+          //   created_at:           Timestamp
+          //
+          // Legacy/mock data may still have `location` as a string and
+          // `price`/`rating`/`createdAt` short names, so both shapes are
+          // handled here. After this mapper, `location` is always a string.
+          const cityString =
+            (typeof item.city === 'string' && item.city) ||
+            (typeof item.location === 'string' && item.location) ||
+            'Palapye';
+
           return {
             id: document.id,
             name: item.name || 'Unnamed Property',
-            location: item.location || 'Palapye',
-            price: Number(item.price ?? 0),
+            location: cityString,
+            price: Number(item.price_per_night_bwp ?? item.price ?? 0),
             badge: item.badge || 'Premier Rated',
-            rating: Number(item.rating ?? 0),
+            rating: Number(item.average_rating ?? item.rating ?? 0),
             reviewsCount: Number(item.reviewsCount ?? 0),
-            createdAt: item.createdAt
+            createdAt: item.created_at ?? item.createdAt,
           };
         });
 
         setGuesthouses(normalizedData);
 
-        const mockReviews: Review[] = normalizedData.flatMap(g => 
+        const mockReviews: Review[] = normalizedData.flatMap(g =>
           (g.reviewsCount ?? 0) > 0 ? [{
             id: `${g.id}-rev`,
             guesthouseName: g.name,
             customerName: "Onalenna K.",
             rating: Number(g.rating ?? 0),
             comment: "Amazing peaceful stay, clean rooms, and great location!",
-            date: "Today"
+            date: "Today",
           }] : []
         );
         setReviews(mockReviews);
@@ -104,19 +122,19 @@ export default function AdminDashboard() {
     return acc;
   }, {});
 
-  const dominantHub = Object.keys(locationCounts).reduce((a, b) => 
+  const dominantHub = Object.keys(locationCounts).reduce((a, b) =>
     locationCounts[a] > locationCounts[b] ? a : b, 'None'
   );
   const dominantHubCount = dominantHub !== 'None' ? locationCounts[dominantHub] : 0;
   const dominantHubPercentage = totalListings > 0 ? ((dominantHubCount / totalListings) * 100).toFixed(1) : '0';
 
-  const premierStay = guesthouses.length > 0 
-    ? [...guesthouses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] 
+  const premierStay = guesthouses.length > 0
+    ? [...guesthouses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0]
     : null;
 
   const hubStays = guesthouses.filter(g => (g.location || 'Palapye') === dominantHub);
-  const avgHubPrice = hubStays.length > 0 
-    ? Math.round(hubStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / hubStays.length) 
+  const avgHubPrice = hubStays.length > 0
+    ? Math.round(hubStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / hubStays.length)
     : 0;
 
   const allPrices = guesthouses.map(g => g.price ?? 0);
@@ -138,7 +156,7 @@ export default function AdminDashboard() {
       g.price ?? 0,
       `"${g.badge || ''}"`,
       g.rating ?? 0,
-      g.reviewsCount ?? 0
+      g.reviewsCount ?? 0,
     ]);
 
     const csvContent = [headers.join(","), ...rows.map(row => row.join(","))].join("\n");
@@ -156,7 +174,9 @@ export default function AdminDashboard() {
     const loc = (g.location || 'Palapye').trim().toLowerCase();
     const currentFilter = selectedCityFilter.trim().toLowerCase();
 
-    const matchesSearch = g.name.toLowerCase().includes(searchQuery.toLowerCase()) || loc.includes(searchQuery.toLowerCase());
+    const matchesSearch =
+      g.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      loc.includes(searchQuery.toLowerCase());
     const matchesCity = selectedCityFilter === 'All' || loc === currentFilter;
     const matchesRating = (g.rating ?? 0) >= minRatingFilter;
 
@@ -240,10 +260,10 @@ export default function AdminDashboard() {
 
             <div className="city-pills-container">
               {availableCities.map(city => {
-                const cityCount = city === 'All' 
-                  ? guesthouses.length 
+                const cityCount = city === 'All'
+                  ? guesthouses.length
                   : guesthouses.filter(g => (g.location || 'Palapye').trim().toLowerCase() === city.trim().toLowerCase()).length;
-                
+
                 return (
                   <button
                     key={city}
@@ -259,8 +279,8 @@ export default function AdminDashboard() {
             <div className="filters-container">
               <div className="filter-group">
                 <label className="filter-label">Sort by Price:</label>
-                <select 
-                  value={sortByPrice} 
+                <select
+                  value={sortByPrice}
                   onChange={(e) => setSortByPrice(e.target.value as any)}
                   className="filter-select"
                 >
@@ -272,8 +292,8 @@ export default function AdminDashboard() {
 
               <div className="filter-group">
                 <label className="filter-label">Min Rating:</label>
-                <select 
-                  value={minRatingFilter} 
+                <select
+                  value={minRatingFilter}
                   onChange={(e) => setMinRatingFilter(Number(e.target.value))}
                   className="filter-select"
                 >
@@ -351,8 +371,8 @@ export default function AdminDashboard() {
             </div>
 
             <div className="split-sections">
-              <div 
-                className="admin-card clickable-card" 
+              <div
+                className="admin-card clickable-card"
                 onClick={() => {
                   if (dominantHub !== 'None') {
                     setSelectedCityFilter(dominantHub);
@@ -364,7 +384,7 @@ export default function AdminDashboard() {
                   <SlidersHorizontal className="city-dist-icon" />
                 </div>
                 <p className="city-dist-subtitle">Active units and baseline pricing across districts (Click to filter)</p>
-                
+
                 {totalListings === 0 ? (
                   <p className="empty-state-text">No regional data available yet.</p>
                 ) : (
