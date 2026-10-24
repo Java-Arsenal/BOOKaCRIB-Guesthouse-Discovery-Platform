@@ -71,9 +71,13 @@ The emulator UI is at `http://127.0.0.1:4000`; the API is at `http://127.0.0.1:5
 ## Firestore Collections
 
 - `admins`: admin_id, full_name, email, role, created_at
-- `guesthouses`: guesthouse_id, created_by, name, logo_url, gallery_urls[], description, amenities[], location, price_per_night_bwp, city, country, contact_details, average_rating, created_at
+- `guesthouses`: guesthouse_id, created_by, name, logo_url, gallery_urls[], description, amenities[], location (latitude, longitude), price_per_night_bwp, city, country, contact_details, average_rating, rating_sum, rating_count, created_at
 - `customers`: customer_id (= Firebase Auth UID), full_name, email, favourites[], created_at
 - `ratings`: rating_id (`{customer_id}_{guesthouse_id}`), guesthouse_id, customer_id, score, comment, created_at, updated_at
+
+`rating_sum` and `rating_count` are maintained transactionally with each rating create, edit, or delete. `average_rating` is `rating_sum / rating_count` (or `0` when there are no ratings). Existing guesthouse documents without the aggregate fields are recalculated from their ratings the first time a rating changes.
+
+Customer favourites are managed through authenticated `GET /api/customers/me/favourites`, `PUT /api/customers/me/favourites/:guesthouseId`, and `DELETE /api/customers/me/favourites/:guesthouseId` endpoints. These routes require the caller's customer profile and never expose another customer's saved list.
 
 ## Testing
 

@@ -53,7 +53,7 @@ export default function GuesthouseCard({ item, onPress }: GuesthouseCardProps) {
             {item.name}
           </Text>
           <Text style={styles.ratingText}>
-            ⭐ {item.rating} ({item.reviewsCount || 12})
+            ⭐ {item.rating} ({item.reviewsCount ?? 0})
           </Text>
         </View>
 
