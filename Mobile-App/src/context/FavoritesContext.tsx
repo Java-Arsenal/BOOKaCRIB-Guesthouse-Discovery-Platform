@@ -52,6 +52,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       if (!Array.isArray(data) || data.some((item) => typeof item !== "string")) {
         throw new Error("The server returned an invalid favourites list.");
       }
+      // Ignore results from an earlier account/session if auth changed while the request was pending.
       if (id === requestId.current) setFavoriteIds(data);
     } catch (loadError) {
       if (id === requestId.current) {

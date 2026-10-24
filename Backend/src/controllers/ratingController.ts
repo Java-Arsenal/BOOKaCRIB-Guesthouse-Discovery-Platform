@@ -28,6 +28,7 @@ async function readAggregate(
     };
   }
 
+  // Backfill aggregates from existing ratings for guesthouses created before these fields existed.
   const snapshot = await transaction.get(ratings.where('guesthouse_id', '==', guesthouseId));
   return snapshot.docs.reduce(
     (aggregate, doc) => {
@@ -53,6 +54,7 @@ export async function upsertRating(req: Request, res: Response, next: NextFuncti
 
   try {
     await db.runTransaction(async (transaction) => {
+      // Keep a rating write and its guesthouse aggregate in one commit to prevent drift.
       const [guesthouseSnapshot, ratingSnapshot] = await Promise.all([
         transaction.get(guesthouseRef),
         transaction.get(ratingRef),
@@ -150,6 +152,7 @@ export async function deleteMyRating(req: Request, res: Response, next: NextFunc
         guesthouseId,
         guesthouseSnapshot.data() ?? {},
       );
+      // Clamp the count so legacy or inconsistent data cannot produce a negative rating_count.
       const score = ratingSnapshot.get('score');
       const sum = aggregate.sum - (typeof score === 'number' ? score : 0);
       const count = Math.max(0, aggregate.count - 1);
