@@ -15,6 +15,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  type User,
 } from 'firebase/auth';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { auth } from '../../firebaseConfig';
@@ -25,6 +26,37 @@ import type { RootStackParamList } from '../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>;
 type Mode = 'login' | 'signup';
+
+/**
+ * Ensures a `customers/<uid>` doc exists for the given Firebase user.
+ * Runs on **every** login and signup — POST /customers is idempotent
+ * (returns 409 if the doc already exists), so re-sending is safe and
+ * recovers from deleted/missing docs.
+ *
+ * Backend requires the customer doc for favourites and ratings; without
+ * it, those endpoints return 404 CUSTOMER_NOT_FOUND.
+ */
+async function ensureCustomerProfile(user: User, fallbackName?: string): Promise<void> {
+  try {
+    const token = await user.getIdToken();
+    const name =
+      user.displayName?.trim() ||
+      fallbackName?.trim() ||
+      user.email?.split('@')[0] ||
+      'Customer';
+    await apiRequest(
+      '/customers',
+      { method: 'POST', body: JSON.stringify({ full_name: name }) },
+      token,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (!msg.toLowerCase().includes('already exists')) {
+      // Non-fatal — auth user exists, doc creation failed. Log for debugging.
+      console.warn('[login] ensureCustomerProfile failed:', msg);
+    }
+  }
+}
 
 export default function LoginScreen({ navigation }: Props) {
   const { refresh } = useFavorites();
@@ -55,6 +87,8 @@ export default function LoginScreen({ navigation }: Props) {
 
     setSubmitting(true);
     try {
+      let user: User;
+
       if (isSignup) {
         const cred = await createUserWithEmailAndPassword(
           auth,
@@ -62,31 +96,27 @@ export default function LoginScreen({ navigation }: Props) {
           password,
         );
         await updateProfile(cred.user, { displayName: fullName.trim() });
-
-        const token = await cred.user.getIdToken();
-        try {
-          await apiRequest(
-            '/customers',
-            {
-              method: 'POST',
-              body: JSON.stringify({ full_name: fullName.trim() }),
-            },
-            token,
-          );
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!/already exists/i.test(msg)) {
-            console.warn('[login] POST /customers failed:', msg);
-          }
-        }
-
-        try {
-          await refresh();
-        } catch {
-          // best-effort
-        }
+        user = cred.user;
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
+        const cred = await signInWithEmailAndPassword(
+          auth,
+          email.trim(),
+          password,
+        );
+        user = cred.user;
+      }
+
+      // Runs on both signup and login. POST /customers is idempotent
+      // (409 if doc exists), so re-sending is safe and heals missing docs.
+      await ensureCustomerProfile(user, isSignup ? fullName.trim() : undefined);
+
+      // FavoritesContext fired /customers/me/favourites on auth state change
+      // before the customer doc might have existed. Refresh to clear any
+      // transient 404 error state.
+      try {
+        await refresh();
+      } catch {
+        // best-effort
       }
 
       navigation.goBack();
