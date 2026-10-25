@@ -1,75 +1,97 @@
 import { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth } from '../firebase';
+import { createGuesthouse, uploadGuesthouseImage } from '../services/api';
 import '../styling/RegisterGuesthouse.css';
 
 export default function RegisterGuesthouse() {
-  // Required Project Fields State
   const [name, setName] = useState('');
-  const [logo, setLogo] = useState('');
   const [description, setDescription] = useState('');
   const [amenities, setAmenities] = useState('');
-  const [coordinates, setCoordinates] = useState('');
-  const [location, setLocation] = useState('Palapye');
+  const [latitude, setLatitude] = useState('');
+  const [longitude, setLongitude] = useState('');
+  const [city, setCity] = useState('Palapye');
   const [country] = useState('Botswana');
   const [price, setPrice] = useState('');
-  const [contactDetails, setContactDetails] = useState('');
-  const [images, setImages] = useState<string[]>(['', '', '', '']);
-  const [badge, setBadge] = useState('Premier Rated');
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [galleryFiles, setGalleryFiles] = useState<(File | null)[]>([null, null, null, null]);
+  const [badge, setBadge] = useState('Premier Rated'); // Display only — not yet supported by the backend schema
+  const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // General file reader helper for local images/logos
-  const handleFileToGenerativeBase64 = (callback: (base64: string) => void, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => callback(reader.result as string);
-    reader.readAsDataURL(file);
+  const handleGalleryChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    setGalleryFiles(prev => {
+      const next = [...prev];
+      next[index] = file;
+      return next;
+    });
   };
 
-  const handleImageChange = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    handleFileToGenerativeBase64((base64) => {
-      const updatedImages = [...images];
-      updatedImages[index] = base64;
-      setImages(updatedImages);
-    }, e);
-  };
-  
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !price || !description) return;
+    setErrorMessage('');
 
+    if (!name || !price || !description || !latitude || !longitude || !contactName || !contactPhone) {
+      setErrorMessage('Please fill in all required fields, including coordinates and contact name/phone.');
+      return;
+    }
+
+    const token = await auth.currentUser?.getIdToken();
+    if (!token) {
+      setErrorMessage('You must be signed in as an admin to register a guesthouse.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
-      await addDoc(collection(db, 'guesthouses'), {
+      const result = await createGuesthouse({
         name,
-        logo,
         description,
-        amenities: amenities.split(',').map(item => item.trim()).filter(Boolean), // Saves as a clean array of amenities
-        coordinates,
-        location,
+        amenities: amenities.split(',').map(item => item.trim()).filter(Boolean),
+        location: { latitude: Number(latitude), longitude: Number(longitude) },
+        price_per_night_bwp: Number(price),
+        city,
         country,
-        price: Number(price),
-        contactDetails,
-        images,
-        badge,
-        rating: 0,
-        reviewsCount: 0,
-        createdAt: new Date()
-      });
+        contact_details: {
+          contact_name: contactName,
+          phone: contactPhone,
+          ...(contactEmail ? { email: contactEmail } : {}),
+        },
+      }, token);
+
+      const guesthouseId = result?.data?.guesthouse_id;
+
+      if (guesthouseId) {
+        if (logoFile) {
+          await uploadGuesthouseImage(guesthouseId, logoFile, 'logo', token);
+        }
+        for (const file of galleryFiles) {
+          if (file) await uploadGuesthouseImage(guesthouseId, file, 'gallery', token);
+        }
+      }
 
       setSuccessMessage(true);
-      // Reset form fields
       setName('');
-      setLogo('');
       setDescription('');
       setAmenities('');
-      setCoordinates('');
+      setLatitude('');
+      setLongitude('');
       setPrice('');
-      setContactDetails('');
-      setImages(['', '', '', '']);
+      setContactName('');
+      setContactPhone('');
+      setContactEmail('');
+      setLogoFile(null);
+      setGalleryFiles([null, null, null, null]);
       setTimeout(() => setSuccessMessage(false), 3000);
     } catch (err) {
-      console.error("Error adding guesthouse to Firestore: ", err);
+      console.error('Error registering guesthouse: ', err);
+      setErrorMessage('Failed to register guesthouse. Check the console for details.');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -82,7 +104,13 @@ export default function RegisterGuesthouse() {
 
       {successMessage && (
         <div style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem', backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', color: '#16a34a', fontSize: '0.75rem', borderRadius: '0.5rem', fontWeight: 500 }}>
-          Guesthouse successfully registered with all project fields and saved to Firestore!
+          Guesthouse successfully registered and saved to the backend!
+        </div>
+      )}
+
+      {errorMessage && (
+        <div style={{ marginBottom: '1.5rem', padding: '0.75rem 1rem', backgroundColor: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', fontSize: '0.75rem', borderRadius: '0.5rem', fontWeight: 500 }}>
+          {errorMessage}
         </div>
       )}
 
@@ -104,7 +132,7 @@ export default function RegisterGuesthouse() {
             <input
               type="file"
               accept="image/*"
-              onChange={e => handleFileToGenerativeBase64(setLogo, e)}
+              onChange={e => setLogoFile(e.target.files?.[0] ?? null)}
               className="register-input"
             />
           </div>
@@ -123,13 +151,13 @@ export default function RegisterGuesthouse() {
           />
         </div>
 
-        {/* Location & City & Country */}
+        {/* City & Country */}
         <div className="register-row-grid">
           <div className="register-field-group">
             <label className="register-label">City / Hub *</label>
             <select
-              value={location}
-              onChange={e => setLocation(e.target.value)}
+              value={city}
+              onChange={e => setCity(e.target.value)}
               className="register-select"
             >
               <option value="Palapye">Palapye</option>
@@ -156,17 +184,34 @@ export default function RegisterGuesthouse() {
           </div>
         </div>
 
+        {/* Coordinates */}
         <div className="register-row-grid">
           <div className="register-field-group">
-            <label className="register-label">Google Maps Coordinates</label>
+            <label className="register-label">Latitude *</label>
             <input
-              type="text"
-              value={coordinates}
-              onChange={e => setCoordinates(e.target.value)}
+              type="number"
+              step="any"
+              value={latitude}
+              onChange={e => setLatitude(e.target.value)}
               className="register-input"
+              required
             />
           </div>
 
+          <div className="register-field-group">
+            <label className="register-label">Longitude *</label>
+            <input
+              type="number"
+              step="any"
+              value={longitude}
+              onChange={e => setLongitude(e.target.value)}
+              className="register-input"
+              required
+            />
+          </div>
+        </div>
+
+        <div className="register-row-grid">
           <div className="register-field-group">
             <label className="register-label">Nightly Rate (Pula - BWP) *</label>
             <input
@@ -177,10 +222,7 @@ export default function RegisterGuesthouse() {
               required
             />
           </div>
-        </div>
 
-        {/* Amenities & Contact Details */}
-        <div className="register-row-grid">
           <div className="register-field-group">
             <label className="register-label">Amenities (Comma separated)</label>
             <input
@@ -190,19 +232,43 @@ export default function RegisterGuesthouse() {
               className="register-input"
             />
           </div>
+        </div>
 
+        {/* Contact Details */}
+        <div className="register-row-grid">
           <div className="register-field-group">
-            <label className="register-label">Contact Details</label>
+            <label className="register-label">Host Contact Name *</label>
             <input
               type="text"
-              value={contactDetails}
-              onChange={e => setContactDetails(e.target.value)}
+              value={contactName}
+              onChange={e => setContactName(e.target.value)}
               className="register-input"
+              required
+            />
+          </div>
+
+          <div className="register-field-group">
+            <label className="register-label">Host Phone *</label>
+            <input
+              type="text"
+              value={contactPhone}
+              onChange={e => setContactPhone(e.target.value)}
+              className="register-input"
+              required
             />
           </div>
         </div>
 
-        
+        <div className="register-field-group">
+          <label className="register-label">Host Email (Optional)</label>
+          <input
+            type="email"
+            value={contactEmail}
+            onChange={e => setContactEmail(e.target.value)}
+            className="register-input"
+          />
+        </div>
+
         <div style={{ marginTop: '0.5rem', marginBottom: '0.5rem', fontWeight: 600, fontSize: '0.875rem' }}>
           Gallery Images (Multiple Photos)
         </div>
@@ -212,19 +278,19 @@ export default function RegisterGuesthouse() {
             <input
               type="file"
               accept="image/*"
-              onChange={(e) => handleImageChange(index, e)}
+              onChange={(e) => handleGalleryChange(index, e)}
               className="register-input"
             />
-            {images[index] && (
+            {galleryFiles[index] && (
               <span style={{ fontSize: '0.7rem', color: '#16a34a', marginTop: '0.25rem', display: 'block' }}>
-                ✓ Photo {index + 1} loaded
+                ✓ Photo {index + 1} selected
               </span>
             )}
           </div>
         ))}
 
         <div className="register-field-group" style={{ marginTop: '1rem' }}>
-          <label className="register-label">Property Category / Badge</label>
+          <label className="register-label">Property Category / Badge (display only, not yet saved to backend)</label>
           <select
             value={badge}
             onChange={e => setBadge(e.target.value)}
@@ -238,8 +304,8 @@ export default function RegisterGuesthouse() {
           </select>
         </div>
 
-        <button type="submit" className="register-submit-btn">
-          Complete Registration & Save to Inventory
+        <button type="submit" className="register-submit-btn" disabled={submitting}>
+          {submitting ? 'Registering...' : 'Complete Registration & Save to Inventory'}
         </button>
       </form>
     </div>
