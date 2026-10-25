@@ -198,7 +198,9 @@ export default function SearchScreen({ navigation }: any) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+        <View
+          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
+        >
           <Text style={{ fontFamily: fonts.body, color: colors.slate }}>
             Loading guesthouses...
           </Text>
