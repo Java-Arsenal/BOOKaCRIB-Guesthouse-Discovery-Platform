@@ -7,3 +7,6 @@ serviceAccountKey.json
 firebase-debug.log
 firestore-debug.log
 ui-debug.log
+service-account.json
+serviceAccount*.json
+*firebase-adminsdk*.json
