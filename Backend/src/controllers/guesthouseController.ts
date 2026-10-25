@@ -39,13 +39,26 @@ export async function createGuesthouse(req: Request, res: Response, next: NextFu
       ...req.body,
       created_by: req.user!.uid,
       average_rating: 0,
+      rating_sum: 0,
+      rating_count: 0,
       logo_url: null,
       gallery_urls: [],
       created_at: FieldValue.serverTimestamp(),
       updated_at: FieldValue.serverTimestamp(),
     };
     const doc = await guesthouses.add(data);
-    res.status(201).json({ success: true, data: { guesthouse_id: doc.id, ...req.body } });
+    res.status(201).json({
+      success: true,
+      data: {
+        guesthouse_id: doc.id,
+        ...req.body,
+        average_rating: 0,
+        rating_sum: 0,
+        rating_count: 0,
+        logo_url: null,
+        gallery_urls: [],
+      },
+    });
   } catch (error) {
     next(error);
   }
@@ -121,7 +134,11 @@ export async function uploadGuesthouseImage(req: Request, res: Response, next: N
         });
       }
     } catch (error) {
-      await cloudinary.uploader.destroy(uploaded.public_id).catch(() => undefined);
+      try {
+        await cloudinary.uploader.destroy(uploaded.public_id);
+      } catch (rollbackError) {
+        console.error('Failed to remove uploaded image after Firestore update failed', rollbackError);
+      }
       throw error;
     }
 

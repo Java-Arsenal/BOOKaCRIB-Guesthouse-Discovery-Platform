@@ -8,21 +8,28 @@ import {
   Linking,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import RatingInput from "../components/RatingInput";
+import FavoriteButton from "../components/FavoriteButton";
 import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
 
 export default function GuesthouseDetailScreen() {
   const route = useRoute<any>();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<{ Login: undefined }>>();
 
   const guesthouse = route.params?.guesthouse;
   const [rateOpen, setRateOpen] = useState(false);
 
   const openMaps = () => {
     const query = encodeURIComponent(
-      `${guesthouse.name}, ${guesthouse.location}, Botswana`,
+      typeof guesthouse.latitude === "number" &&
+        Number.isFinite(guesthouse.latitude) &&
+        typeof guesthouse.longitude === "number" &&
+        Number.isFinite(guesthouse.longitude)
+        ? `${guesthouse.latitude},${guesthouse.longitude}`
+        : `${guesthouse.name}, ${guesthouse.location}, Botswana`,
     );
     Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${query}`);
   };
@@ -49,6 +56,11 @@ export default function GuesthouseDetailScreen() {
         >
           <Ionicons name="arrow-back" size={20} color={colors.ink} />
         </TouchableOpacity>
+        <View style={{ flex: 1 }} />
+        <FavoriteButton
+          guesthouseId={guesthouse.id}
+          onRequireLogin={() => navigation.navigate("Login")}
+        />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
@@ -76,7 +88,7 @@ export default function GuesthouseDetailScreen() {
             <View style={styles.pill}>
               <Ionicons name="star" size={14} color={colors.gold} />
               <Text style={styles.pillText}>
-                {guesthouse.rating} ({guesthouse.reviewsCount || 12} reviews)
+                {guesthouse.rating} ({guesthouse.reviewsCount ?? 0} reviews)
               </Text>
             </View>
             <TouchableOpacity

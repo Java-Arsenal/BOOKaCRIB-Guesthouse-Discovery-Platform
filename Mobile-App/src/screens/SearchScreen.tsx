@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 
 import {
-  View,
-  Text,
+  ActivityIndicator,
   FlatList,
-  StyleSheet,
-  TouchableOpacity,
+  RefreshControl,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,16 +21,19 @@ export interface Guesthouse {
   id: string;
   name: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   pricePerNight: number;
-  availableRooms: number;
   rating: number;
   reviewsCount?: number;
   description: string;
   amenities: string[];
 }
 
+type SortKey = "cheapest" | "rated";
+
 const SORTS: {
-  key: string;
+  key: SortKey;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   summary: string;
@@ -37,27 +42,32 @@ const SORTS: {
     key: "cheapest",
     label: "Cheapest First",
     icon: "swap-vertical",
-    summary: "Sorted by price (cheapest first)",
+    summary: "Cheapest first",
   },
   {
     key: "rated",
     label: "Top Rated",
     icon: "star",
-    summary: "Sorted by rating (top rated)",
-  },
-  {
-    key: "wifi",
-    label: "Wi-Fi included",
-    icon: "wifi",
-    summary: "Showing Wi-Fi included",
+    summary: "Top rated",
   },
 ];
 
-const CITIES = [
-  { key: "all", label: "All Cities" },
-  { key: "gaborone", label: "Gaborone" },
-  { key: "palapye", label: "Palapye" },
-];
+/** Best-effort icon for an amenity by keyword; falls back to a checkmark. */
+function amenityIcon(amenity: string): keyof typeof Ionicons.glyphMap {
+  const lower = amenity.toLowerCase();
+  if (lower.includes("wi-fi") || lower.includes("wifi")) return "wifi";
+  if (lower.includes("parking")) return "car-outline";
+  if (lower.includes("air") || lower.includes("a/c") || lower.includes("ac"))
+    return "snow-outline";
+  if (lower.includes("kitchen")) return "restaurant-outline";
+  if (lower.includes("garden")) return "leaf-outline";
+  if (lower.includes("solar")) return "sunny-outline";
+  if (lower.includes("desk")) return "desktop-outline";
+  if (lower.includes("study")) return "book-outline";
+  if (lower.includes("river") || lower.includes("deck")) return "water-outline";
+  if (lower.includes("power")) return "flash-outline";
+  return "checkmark-circle-outline";
+}
 
 function SearchResultCard({
   item,
@@ -88,7 +98,7 @@ function SearchResultCard({
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.gold} />
             <Text style={styles.ratingText}>
-              {item.rating} ({item.reviewsCount || 12})
+              {item.rating} ({item.reviewsCount ?? 0})
             </Text>
           </View>
         </View>
@@ -115,84 +125,159 @@ function SearchResultCard({
 
 export default function SearchScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("cheapest");
-  const [selectedCity, setSelectedCity] = useState("all");
+  const [sortBy, setSortBy] = useState<SortKey>("cheapest");
+  const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
+  const [selectedCity, setSelectedCity] = useState<string>("all");
   const [listings, setListings] = useState<Guesthouse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const data = await apiGet("/guesthouses");
-        if (cancelled) return;
-        setListings(
-          data.map((item: any) => ({
-            id: item.guesthouse_id ?? item.id,
-            name: item.name,
-            location: item.city ?? item.location ?? "Botswana",
-            pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
-            availableRooms: 0,
-            rating: item.average_rating ?? 0,
-            reviewsCount: item.rating_count ?? 0,
-            description: item.description ?? "",
-            amenities: item.amenities ?? [],
-          })),
-        );
-      } catch (error) {
-        console.error("Failed to load guesthouses:", error);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  const load = useCallback(async () => {
+    setError(null);
+    try {
+      const data = await apiGet("/guesthouses");
+      setListings(
+        data.map((item: any) => ({
+          id: item.guesthouse_id ?? item.id,
+          name: item.name ?? "Unnamed Property",
+          location:
+            item.city ??
+            (typeof item.location === "string" ? item.location : "Botswana"),
+          latitude:
+            typeof item.location?.latitude === "number"
+              ? item.location.latitude
+              : undefined,
+          longitude:
+            typeof item.location?.longitude === "number"
+              ? item.location.longitude
+              : undefined,
+          pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
+          rating: item.average_rating ?? 0,
+          reviewsCount: item.rating_count ?? 0,
+          description: item.description ?? "",
+          amenities: Array.isArray(item.amenities) ? item.amenities : [],
+        })),
+      );
+    } catch (err) {
+      console.error("Failed to load guesthouses:", err);
+      setError(
+        "Could not load guesthouses. Check your connection and try again.",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    load();
-    return () => {
-      cancelled = true;
-    };
   }, []);
 
-  let processedData = listings.filter(
-    (item) =>
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.location.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+  useEffect(() => {
+    void load();
+  }, [load]);
 
-  if (selectedCity !== "all") {
-    processedData = processedData.filter((item) =>
-      item.location.toLowerCase().includes(selectedCity),
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    void load();
+  }, [load]);
+
+  // Cities present in the loaded data — always in sync with whatever the API
+  // returns, so no more hardcoded city misses.
+  const cities = useMemo(() => {
+    const unique = Array.from(
+      new Set(listings.map((l) => l.location).filter(Boolean)),
+    ).sort();
+    return [
+      { key: "all", label: "All Cities" },
+      ...unique.map((c) => ({ key: c.toLowerCase(), label: c })),
+    ];
+  }, [listings]);
+
+  // Every amenity that appears in at least one listing. Sorted A→Z.
+  // Any new amenity added to a guesthouse doc shows up here automatically.
+  const availableAmenities = useMemo(() => {
+    const set = new Set<string>();
+    for (const l of listings) {
+      for (const a of l.amenities) {
+        if (a && a.trim()) set.add(a);
+      }
+    }
+    return Array.from(set).sort();
+  }, [listings]);
+
+  function toggleAmenity(amenity: string) {
+    setSelectedAmenities((current) =>
+      current.includes(amenity)
+        ? current.filter((a) => a !== amenity)
+        : [...current, amenity],
     );
   }
 
-  if (activeFilter === "wifi") {
-    processedData = processedData.filter((item) =>
-      item.amenities.some(
-        (a) =>
-          a.toLowerCase().includes("wi-fi") || a.toLowerCase().includes("wifi"),
-      ),
-    );
-  }
+  const processedData = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
 
-  if (activeFilter === "cheapest") {
-    processedData.sort((a, b) => a.pricePerNight - b.pricePerNight);
-  } else if (activeFilter === "rated") {
-    processedData.sort((a, b) => b.rating - a.rating);
-  }
+    let filtered = listings.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.location.toLowerCase().includes(q),
+    );
+
+    if (selectedCity !== "all") {
+      filtered = filtered.filter(
+        (item) => item.location.toLowerCase() === selectedCity,
+      );
+    }
+
+    // Multi-select amenity filter — AND logic: listing must have ALL
+    // selected amenities. Flip to `.some()` for OR if you prefer
+    // broader results.
+    if (selectedAmenities.length > 0) {
+      filtered = filtered.filter((item) =>
+        selectedAmenities.every((sel) => item.amenities.includes(sel)),
+      );
+    }
+
+    if (sortBy === "rated") {
+      return [...filtered].sort((a, b) => b.rating - a.rating);
+    }
+    return [...filtered].sort((a, b) => a.pricePerNight - b.pricePerNight);
+  }, [listings, searchQuery, selectedCity, selectedAmenities, sortBy]);
 
   const region =
     selectedCity !== "all"
-      ? selectedCity.charAt(0).toUpperCase() + selectedCity.slice(1)
+      ? (cities.find((c) => c.key === selectedCity)?.label ?? "Botswana")
       : "Botswana";
-  const summary = `${SORTS.find((s) => s.key === activeFilter)?.summary} · ${processedData.length} results in ${region}`;
+
+  const sortEntry = SORTS.find((s) => s.key === sortBy);
+  const amenitySummary =
+    selectedAmenities.length > 0 ? ` · ${selectedAmenities.join(" · ")}` : "";
+  const countLabel = `${processedData.length} ${
+    processedData.length === 1 ? "result" : "results"
+  }`;
+  const summary = `${sortEntry?.summary ?? "Cheapest first"}${amenitySummary} · ${countLabel} in ${region}`;
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View
-          style={{ flex: 1, alignItems: "center", justifyContent: "center" }}
-        >
-          <Text style={{ fontFamily: fonts.body, color: colors.slate }}>
-            Loading guesthouses...
-          </Text>
+        <View style={styles.centered}>
+          <ActivityIndicator color={colors.coral} />
+          <Text style={styles.centeredText}>Loading guesthouses...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.centered}>
+          <Ionicons
+            name="cloud-offline-outline"
+            size={42}
+            color={colors.slate}
+          />
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={load}>
+            <Text style={styles.retryButtonText}>Try again</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -221,18 +306,19 @@ export default function SearchScreen({ navigation }: any) {
           onClear={() => setSearchQuery("")}
         />
 
+        {/* Sort row — single-select */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.chipScroll}
         >
           {SORTS.map((s) => {
-            const active = activeFilter === s.key;
+            const active = sortBy === s.key;
             return (
               <TouchableOpacity
                 key={s.key}
                 style={[styles.chip, active && styles.chipActive]}
-                onPress={() => setActiveFilter(s.key)}
+                onPress={() => setSortBy(s.key)}
               >
                 <Ionicons
                   name={s.icon}
@@ -255,8 +341,51 @@ export default function SearchScreen({ navigation }: any) {
           })}
         </ScrollView>
 
-        <View style={styles.cityRow}>
-          {CITIES.map((c) => {
+        {/* Amenity row — multi-select, dynamic from data. Teal when active
+            so it reads as "filter", distinct from the coral sort chips. */}
+        {availableAmenities.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.amenityScroll}
+          >
+            {availableAmenities.map((amenity) => {
+              const active = selectedAmenities.includes(amenity);
+              return (
+                <TouchableOpacity
+                  key={amenity}
+                  style={[
+                    styles.amenityChip,
+                    active && styles.amenityChipActive,
+                  ]}
+                  onPress={() => toggleAmenity(amenity)}
+                >
+                  <Ionicons
+                    name={amenityIcon(amenity)}
+                    size={13}
+                    color={active ? colors.white : colors.slate}
+                  />
+                  <Text
+                    style={[
+                      styles.amenityChipText,
+                      active && styles.amenityChipTextActive,
+                    ]}
+                  >
+                    {amenity}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        )}
+
+        {/* City row — single-select, dynamic */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.cityRow}
+        >
+          {cities.map((c) => {
             const active = selectedCity === c.key;
             return (
               <TouchableOpacity
@@ -272,13 +401,20 @@ export default function SearchScreen({ navigation }: any) {
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
       <FlatList
         data={processedData}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: spacing.xl }}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={colors.coral}
+          />
+        }
         ListHeaderComponent={
           <View style={styles.summaryPill}>
             <Text style={styles.summaryText}>{summary}</Text>
@@ -296,6 +432,7 @@ export default function SearchScreen({ navigation }: any) {
         )}
         ListEmptyComponent={
           <View style={styles.emptyFeed}>
+            <Ionicons name="search-outline" size={42} color={colors.slate} />
             <Text style={styles.emptyFeedText}>
               No properties match your active search options.
             </Text>
@@ -308,6 +445,34 @@ export default function SearchScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream },
+  centered: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  centeredText: { fontFamily: fonts.body, color: colors.slate },
+  errorText: {
+    fontFamily: fonts.body,
+    color: colors.slate,
+    textAlign: "center",
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  retryButton: {
+    minHeight: 44,
+    paddingHorizontal: spacing.xl,
+    backgroundColor: colors.coral,
+    borderRadius: radius.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  retryButtonText: {
+    fontFamily: fonts.semibold,
+    color: colors.white,
+    fontSize: 14,
+  },
   header: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
@@ -341,7 +506,34 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink },
   chipTextActive: { color: colors.white },
 
-  cityRow: { flexDirection: "row", marginTop: 12 },
+  amenityScroll: { marginTop: 8 },
+  amenityChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: colors.white,
+    marginRight: 6,
+    borderWidth: 1,
+    borderColor: colors.sand,
+  },
+  amenityChipActive: {
+    backgroundColor: colors.teal,
+    borderColor: colors.teal,
+  },
+  amenityChipText: {
+    fontSize: 12,
+    fontFamily: fonts.body,
+    color: colors.slate,
+  },
+  amenityChipTextActive: {
+    color: colors.white,
+    fontFamily: fonts.semibold,
+  },
+
+  cityRow: { marginTop: 12 },
   cityBadge: {
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -369,8 +561,18 @@ const styles = StyleSheet.create({
   },
   summaryText: { fontSize: 12, fontFamily: fonts.body, color: colors.slate },
 
-  emptyFeed: { alignItems: "center", marginTop: 40 },
-  emptyFeedText: { color: colors.slate, fontSize: 14, fontFamily: fonts.body },
+  emptyFeed: {
+    alignItems: "center",
+    marginTop: 40,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
+  },
+  emptyFeedText: {
+    color: colors.slate,
+    fontSize: 14,
+    fontFamily: fonts.body,
+    textAlign: "center",
+  },
 
   card: {
     backgroundColor: colors.white,

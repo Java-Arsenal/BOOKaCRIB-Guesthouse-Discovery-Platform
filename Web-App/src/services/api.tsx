@@ -35,7 +35,7 @@ export async function createGuesthouse(guesthouseData: {
   price_per_night_bwp: number;
   city: string;
   country: string;
-  contact_details: { phone: string; email: string };
+  contact_details: { contact_name: string; phone: string; email?: string };
 }, token: string) {
   try {
     const response = await fetch(`${API_BASE_URL}/guesthouses`, {
@@ -68,4 +68,20 @@ export async function deleteGuesthouse(id: string) {
   if (!response.ok && response.status !== 204) {
     throw new Error('Failed to delete guesthouse');
   }
+}
+
+// 4. Upload a guesthouse image (logo or gallery) — admin only
+export async function uploadGuesthouseImage(guesthouseId: string, file: File, kind: 'logo' | 'gallery', token: string) {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('kind', kind);
+
+  const response = await fetch(`${API_BASE_URL}/guesthouses/${guesthouseId}/images`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!response.ok) throw new Error(`Failed to upload ${kind} image`);
+  return await response.json();
 }

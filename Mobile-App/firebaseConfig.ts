@@ -1,6 +1,9 @@
 // firebaseConfig.ts
 import { initializeApp } from "firebase/app";
+import { getAuth, initializeAuth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { Platform } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -11,11 +14,20 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase Core Engine Handshake
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore Database Stream and export connection mapping
 export const db = getFirestore(app);
+
+// Web: use getAuth — it defaults to IndexedDB persistence, so sessions survive reloads.
+// Native (iOS/Android): getReactNativePersistence wraps AsyncStorage.
+// getReactNativePersistence does NOT exist in the web build of firebase/auth,
+// so calling it on web throws "is not a function".
+export const auth =
+  Platform.OS === "web"
+    ? getAuth(app)
+    : initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
 
 console.log(
   "🚀 BOOKaCRIB Status: Firebase system client initialized with Expo Public profiles successfully.",

@@ -10,6 +10,8 @@ import {
   Inter_700Bold,
 } from "@expo-google-fonts/inter";
 import RootNavigator from "./src/navigation/RootNavigator";
+import { AuthProvider } from "./src/context/AuthContext";
+import { FavoritesProvider } from "./src/context/FavoritesContext";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -24,7 +26,11 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <RootNavigator />
+        <AuthProvider>
+          <FavoritesProvider>
+            <RootNavigator />
+          </FavoritesProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

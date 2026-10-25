@@ -42,7 +42,7 @@ export default function MyRatingsScreen() {
         <RatingInput
           visible
           guesthouseId={editing.guesthouse_id}
-          guesthouseName={editing.guesthouse_name}
+          guesthouseName={editing.guesthouse_name ?? 'Guesthouse'}
           initialRating={editing.rating}
           initialComment={editing.comment ?? ''}
           onClose={() => setEditing(null)}
