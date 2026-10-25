@@ -101,8 +101,13 @@ const {
   deleteMyRating,
 } = require('../src/controllers/ratingController');
 const customerController = require('../src/controllers/customerController');
+const customerRoutes = require('../src/routes/customers').default;
 const guesthouseRoutes = require('../src/routes/guesthouses').default;
 const { errorHandler } = require('../src/middleware/errorHandler');
+
+const customerApp = express();
+customerApp.use('/customers', customerRoutes);
+customerApp.use(errorHandler);
 
 const imageApp = express();
 imageApp.use('/guesthouses', guesthouseRoutes);
@@ -270,20 +275,49 @@ describe('customer favourites', () => {
 });
 
 describe('guesthouse image upload route', () => {
-  const png = Buffer.from([
-    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 0,
-  ]);
+  // A valid 1x1 PNG exercises multipart parsing with actual image bytes.
+  const png = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/+ioAAAAASUVORK5CYII=',
+    'base64',
+  );
   const uploaded = {
     secure_url: 'https://images.example.test/gh1/logo.png',
     public_id: 'guesthouses/gh1/logo',
   };
+  let uploadedBuffer: Buffer | undefined;
 
   beforeEach(() => {
+    uploadedBuffer = undefined;
     cloudinary.uploader.upload_stream.mockImplementation(
       (_options: unknown, callback: (error: null, result: unknown) => void) => ({
-        end: jest.fn(() => callback(null, uploaded)),
+        end: jest.fn((buffer: Buffer) => {
+          uploadedBuffer = buffer;
+          callback(null, uploaded);
+        }),
       }),
     );
+  });
+
+  test('keeps favourites routes authenticated and scoped to the token customer', async () => {
+    auth.verifyIdToken.mockResolvedValue({ uid: 'customer1' });
+    const unauthenticated = await request(customerApp).get('/customers/me/favourites');
+    expect(unauthenticated.status).toBe(401);
+
+    const listed = await request(customerApp)
+      .get('/customers/me/favourites')
+      .set('Authorization', 'Bearer test-token');
+    expect(listed.status).toBe(200);
+    expect(listed.body).toEqual({ success: true, data: [] });
+
+    const added = await request(customerApp)
+      .put('/customers/me/favourites/gh1')
+      .set('Authorization', 'Bearer test-token');
+    expect(added.status).toBe(204);
+
+    const removed = await request(customerApp)
+      .delete('/customers/me/favourites/gh1')
+      .set('Authorization', 'Bearer test-token');
+    expect(removed.status).toBe(204);
   });
 
   test.each([
@@ -298,23 +332,37 @@ describe('guesthouse image upload route', () => {
 
     expect(res.status).toBe(201);
     expect(documents.guesthouses.gh1[field]).toBeDefined();
+    expect(uploadedBuffer).toEqual(png);
     expect(cloudinary.uploader.upload_stream).toHaveBeenCalledWith(
       { folder: 'guesthouses/gh1', resource_type: 'image' },
       expect.any(Function),
+    );
+    expect(lastDocumentUpdate).toEqual(
+      field === 'logo_url'
+        ? expect.objectContaining({ logo_url: uploaded.secure_url })
+        : expect.objectContaining({
+            gallery_urls: { operation: 'arrayUnion', value: uploaded.secure_url },
+          }),
     );
   });
 
   test('removes the Cloudinary asset when Firestore update fails', async () => {
     failNextGuesthouseUpdate = true;
     const log = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-    const res = await request(imageApp)
-      .post('/guesthouses/gh1/images')
-      .set('Authorization', 'Bearer test-token')
-      .field('kind', 'logo')
-      .attach('image', png, { filename: 'logo.png', contentType: 'image/png' });
+    try {
+      const res = await request(imageApp)
+        .post('/guesthouses/gh1/images')
+        .set('Authorization', 'Bearer test-token')
+        .field('kind', 'logo')
+        .attach('image', png, { filename: 'logo.png', contentType: 'image/png' });
 
-    expect(res.status).toBe(500);
-    expect(cloudinary.uploader.destroy).toHaveBeenCalledWith(uploaded.public_id);
-    log.mockRestore();
+      expect(res.status).toBe(500);
+      expect(uploadedBuffer).toEqual(png);
+      expect(documents.guesthouses.gh1.logo_url).toBeUndefined();
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledTimes(1);
+      expect(cloudinary.uploader.destroy).toHaveBeenCalledWith(uploaded.public_id);
+    } finally {
+      log.mockRestore();
+    }
   });
 });

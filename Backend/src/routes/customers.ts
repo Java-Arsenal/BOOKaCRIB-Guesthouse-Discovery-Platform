@@ -17,6 +17,7 @@ router.post('/', verifyToken, validate(createCustomerSchema), createCustomer);
 router.get('/me', verifyToken, getMe);
 router.patch('/me', verifyToken, validate(updateCustomerSchema), updateMe);
 
+// Favourites belong to the authenticated customer profile; callers cannot select another customer.
 router.get('/me/favourites', verifyToken, getFavourites);
 router.put('/me/favourites/:guesthouseId', verifyToken, addFavourite);
 router.delete('/me/favourites/:guesthouseId', verifyToken, removeFavourite);
