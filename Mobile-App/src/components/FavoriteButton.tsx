@@ -1,16 +1,20 @@
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useFavorites } from "../context/FavoritesContext";
 import { colors } from "../theme/theme";
+import type { RootStackParamList } from "../navigation/RootNavigator";
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 interface FavoriteButtonProps {
   guesthouseId: string;
+  /**
+   * Optional override for the login prompt. If not provided, the button
+   * navigates directly to the Login screen when tapped while logged out.
+   */
   onRequireLogin?: () => void;
 }
 
@@ -18,14 +22,20 @@ export default function FavoriteButton({
   guesthouseId,
   onRequireLogin,
 }: FavoriteButtonProps) {
+  const navigation = useNavigation<Nav>();
   const { favoriteIds, isAuthenticated, toggleFavorite } = useFavorites();
   const [busy, setBusy] = useState(false);
   const isFavorite = favoriteIds.includes(guesthouseId);
 
   const onPress = async () => {
     if (!isAuthenticated) {
+      // Prefer the parent-supplied handler if given (e.g. FavoritesScreen
+      // passes navigation.navigate("Login")). Otherwise fall back to a
+      // direct navigation so the button always does the right thing,
+      // even when rendered from SearchScreen / GuesthouseDetailScreen
+      // which don't pass onRequireLogin.
       if (onRequireLogin) onRequireLogin();
-      else Alert.alert("Log in required", "Log in to save guesthouses.");
+      else navigation.navigate("Login");
       return;
     }
 

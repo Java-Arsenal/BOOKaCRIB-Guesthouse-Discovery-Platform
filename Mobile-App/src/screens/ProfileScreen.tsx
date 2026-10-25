@@ -1,5 +1,13 @@
-import React from "react";
-import { View, Text, Pressable, StyleSheet, ScrollView } from "react-native";
+import React, { useCallback, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  ScrollView,
+} from "react-native";
 import { colors, fonts, radius, shadow, spacing } from "../theme/theme";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 
@@ -9,7 +17,32 @@ const MENU = [
 ];
 
 export default function ProfileScreen({ navigation }: any) {
-  const { user, logout } = useCurrentUser();
+  const { user, ready, logout } = useCurrentUser();
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    setLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      Alert.alert(
+        "Could not sign out",
+        error instanceof Error ? error.message : "Please try again.",
+      );
+    } finally {
+      setLoggingOut(false);
+    }
+  }, [logout]);
+
+  // Initial Firebase auth check hasn't completed yet — show a spinner
+  // instead of flashing the "Log in" CTA for one frame.
+  if (!ready) {
+    return (
+      <View style={[s.screen, s.center]}>
+        <ActivityIndicator color={colors.coral} />
+      </View>
+    );
+  }
 
   if (!user) {
     return (
@@ -66,8 +99,16 @@ export default function ProfileScreen({ navigation }: any) {
         ))}
       </View>
 
-      <Pressable style={s.logout} onPress={logout}>
-        <Text style={s.logoutText}>Log out</Text>
+      <Pressable
+        style={[s.logout, loggingOut && { opacity: 0.6 }]}
+        onPress={handleLogout}
+        disabled={loggingOut}
+      >
+        {loggingOut ? (
+          <ActivityIndicator size="small" color={colors.error} />
+        ) : (
+          <Text style={s.logoutText}>Log out</Text>
+        )}
       </Pressable>
     </ScrollView>
   );
