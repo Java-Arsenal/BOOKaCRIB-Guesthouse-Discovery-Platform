@@ -135,6 +135,7 @@ export async function uploadGuesthouseImage(req: Request, res: Response, next: N
       }
     } catch (error) {
       try {
+        // Compensate for a successful Cloudinary upload if its Firestore reference could not be saved.
         await cloudinary.uploader.destroy(uploaded.public_id);
       } catch (rollbackError) {
         console.error('Failed to remove uploaded image after Firestore update failed', rollbackError);

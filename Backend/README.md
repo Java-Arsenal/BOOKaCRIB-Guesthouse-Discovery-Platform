@@ -82,8 +82,11 @@ Customer favourites are managed through authenticated `GET /api/customers/me/fav
 ## Testing
 
 ```bash
-npm test          # Jest
+npm test -- --runInBand
 ```
+
+The regression suite exercises ratings, authenticated customer favourites, and the guesthouse image-upload HTTP route. Upload tests send a valid PNG through multipart parsing and verify logo/gallery persistence and the Cloudinary cleanup call when the Firestore write fails. Cloudinary and Firestore are mocked at the service boundary, so these tests verify application rollback behavior without uploading to a live account; a staging-credential smoke test is still required to validate the external services end to end.
+
 Use the shared Postman collection to test endpoints manually before mobile/web integration.
 
 ## Security Rules
