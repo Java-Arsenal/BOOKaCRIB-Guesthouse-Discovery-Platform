@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Linking,
+  Image,
 } from "react-native";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -64,7 +65,24 @@ export default function GuesthouseDetailScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.lg }}>
-        <View style={styles.imageBlock} />
+        {guesthouse.logoUrl ? (
+          <Image source={{ uri: guesthouse.logoUrl }} style={styles.imageBlock} />
+        ) : (
+          <View style={styles.imageBlock} />
+        )}
+
+        {guesthouse.galleryUrls && guesthouse.galleryUrls.length > 0 && (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.galleryStrip}
+            contentContainerStyle={{ paddingHorizontal: spacing.md, gap: spacing.sm }}
+          >
+            {guesthouse.galleryUrls.map((url: string, index: number) => (
+              <Image key={index} source={{ uri: url }} style={styles.galleryThumb} />
+            ))}
+          </ScrollView>
+        )}
 
         {/* Main card */}
         <View style={styles.card}>
@@ -222,6 +240,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.sand,
     marginHorizontal: spacing.md,
     borderRadius: radius.card,
+  },
+  galleryStrip: {
+    marginTop: spacing.sm,
+  },
+  galleryThumb: {
+    width: 100,
+    height: 80,
+    borderRadius: radius.control,
+    backgroundColor: colors.sand,
   },
 
   card: {

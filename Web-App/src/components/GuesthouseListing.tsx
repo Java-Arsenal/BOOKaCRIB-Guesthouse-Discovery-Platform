@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Trash2, Star, MapPin } from 'lucide-react';
+import { Building2, Search, Trash2, Star, MapPin, ImageOff } from 'lucide-react';
 import { getGuesthouses, deleteGuesthouse } from '../services/api';
 import '../styling/GuesthouseListing.css';
 
@@ -11,6 +11,7 @@ interface Guesthouse {
   rating: number;
   reviewsCount: number;
   badge?: string;
+  logoUrl?: string;
 }
 
 export default function GuesthouseListing() {
@@ -27,19 +28,15 @@ export default function GuesthouseListing() {
           items.map((item: any) => ({
             id: item.id || item.guesthouse_id,
             name: item.name || 'Unnamed Property',
-            // `getGuesthouses()` already normalizes these to string/number,
-            // but keep the fallbacks here in case the API contract shifts.
             location:
               (typeof item.location === 'string' && item.location) ||
               item.city ||
               'Palapye',
             price: Number(item.price ?? item.price_per_night_bwp ?? 0),
-            // `average_rating` is the canonical field; `rating` supports
-            // legacy/admin-registered docs that only wrote the short name.
             rating: Number(item.average_rating ?? item.rating ?? 0),
-            // Canonical field is `reviewsCount`; `rating_count` is legacy.
             reviewsCount: Number(item.reviewsCount ?? item.rating_count ?? 0),
             badge: item.badge,
+            logoUrl: item.logo_url,
           })),
         );
       } catch (error) {
@@ -61,8 +58,6 @@ export default function GuesthouseListing() {
     }
   };
 
-  // Derive the city dropdown from actual data instead of a hardcoded list.
-  // That way new cities show up automatically, and no empty options.
   const availableLocations = ['All', ...Array.from(new Set(
     listings.map(item => item.location).filter(Boolean)
   )).sort()];
@@ -125,6 +120,7 @@ export default function GuesthouseListing() {
         <table className="listings-table">
           <thead>
             <tr>
+              <th>Photo</th>
               <th>Property Name</th>
               <th>Location</th>
               <th>Category</th>
@@ -136,7 +132,7 @@ export default function GuesthouseListing() {
           <tbody>
             {filteredListings.length === 0 ? (
               <tr>
-                <td colSpan={6} className="listings-empty-cell">
+                <td colSpan={7} className="listings-empty-cell">
                   <Building2 className="listings-empty-icon" />
                   No guesthouse listings found in database matching your filter.
                 </td>
@@ -144,6 +140,29 @@ export default function GuesthouseListing() {
             ) : (
               filteredListings.map(item => (
                 <tr key={item.id}>
+                  <td>
+                    {item.logoUrl ? (
+                      <img
+                        src={item.logoUrl}
+                        alt={item.name}
+                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.375rem' }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '0.375rem',
+                          backgroundColor: '#f1f5f9',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ImageOff style={{ width: '1rem', height: '1rem', color: '#94a3b8' }} />
+                      </div>
+                    )}
+                  </td>
                   <td className="table-cell-bold">{item.name}</td>
                   <td>
                     <span className="location-cell-flex">

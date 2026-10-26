@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -28,6 +29,8 @@ export interface Guesthouse {
   reviewsCount?: number;
   description: string;
   amenities: string[];
+  logoUrl?: string;
+  galleryUrls?: string[];
 }
 
 type SortKey = "cheapest" | "rated";
@@ -83,6 +86,9 @@ function SearchResultCard({
       onPress={onPress}
     >
       <View style={styles.imageFrame}>
+        {item.logoUrl ? (
+          <Image source={{ uri: item.logoUrl }} style={styles.cardImage} />
+        ) : null}
         <View style={styles.pricePill}>
           <Text style={styles.priceText}>
             P{item.pricePerNight} <Text style={styles.perNight}>/ night</Text>
@@ -157,6 +163,8 @@ export default function SearchScreen({ navigation }: any) {
           reviewsCount: item.rating_count ?? 0,
           description: item.description ?? "",
           amenities: Array.isArray(item.amenities) ? item.amenities : [],
+          logoUrl: item.logo_url,
+          galleryUrls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
         })),
       );
     } catch (err) {
@@ -179,8 +187,6 @@ export default function SearchScreen({ navigation }: any) {
     void load();
   }, [load]);
 
-  // Cities present in the loaded data — always in sync with whatever the API
-  // returns, so no more hardcoded city misses.
   const cities = useMemo(() => {
     const unique = Array.from(
       new Set(listings.map((l) => l.location).filter(Boolean)),
@@ -191,8 +197,6 @@ export default function SearchScreen({ navigation }: any) {
     ];
   }, [listings]);
 
-  // Every amenity that appears in at least one listing. Sorted A→Z.
-  // Any new amenity added to a guesthouse doc shows up here automatically.
   const availableAmenities = useMemo(() => {
     const set = new Set<string>();
     for (const l of listings) {
@@ -226,9 +230,6 @@ export default function SearchScreen({ navigation }: any) {
       );
     }
 
-    // Multi-select amenity filter — AND logic: listing must have ALL
-    // selected amenities. Flip to `.some()` for OR if you prefer
-    // broader results.
     if (selectedAmenities.length > 0) {
       filtered = filtered.filter((item) =>
         selectedAmenities.every((sel) => item.amenities.includes(sel)),
@@ -306,7 +307,6 @@ export default function SearchScreen({ navigation }: any) {
           onClear={() => setSearchQuery("")}
         />
 
-        {/* Sort row — single-select */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -341,8 +341,6 @@ export default function SearchScreen({ navigation }: any) {
           })}
         </ScrollView>
 
-        {/* Amenity row — multi-select, dynamic from data. Teal when active
-            so it reads as "filter", distinct from the coral sort chips. */}
         {availableAmenities.length > 0 && (
           <ScrollView
             horizontal
@@ -379,7 +377,6 @@ export default function SearchScreen({ navigation }: any) {
           </ScrollView>
         )}
 
-        {/* City row — single-select, dynamic */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -585,6 +582,15 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   imageFrame: { height: 150, backgroundColor: colors.cream, padding: 12 },
+  cardImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    width: "100%",
+    height: "100%",
+  },
   pricePill: {
     alignSelf: "flex-start",
     backgroundColor: colors.white,
