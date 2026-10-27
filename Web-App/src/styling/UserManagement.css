@@ -1,0 +1,77 @@
+.user-search-wrapper {
+  width: 260px;
+}
+
+.table-header-right {
+  text-align: right;
+}
+
+.table-cell-right {
+  text-align: right;
+}
+
+.table-empty-cell {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.staff-icon-muted {
+  width: 1rem;
+  height: 1.125rem;
+  color: rgba(0, 0, 0, 0.5);
+}
+
+.table-text-muted {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.badge-icon {
+  width: 0.625rem;
+  height: 0.625rem;
+  display: inline;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.status-active-badge {
+  background-color: #ecfdf5;
+  color: #065f46;
+}
+
+.status-suspended-badge {
+  background-color: #fef2f2;
+  color: #991b1b;
+}
+
+.revoke-btn-warning {
+  background-color: #fff1f2;
+  color: #e11d48;
+  border: 1px solid #fecdd3;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.primary-action-btn-sm {
+  background-color: #f97316;
+  color: white;
+  border: none;
+  padding: 0.375rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-right: 0.5rem;
+}
+
+.action-icon-inline {
+  width: 0.75rem;
+  height: 0.75rem;
+  display: inline;
+  vertical-align: middle;
+  margin-right: 2px;
+}
