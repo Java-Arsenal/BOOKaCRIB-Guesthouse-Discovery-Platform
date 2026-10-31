@@ -30,3 +30,12 @@ export async function requireAdmin(req: Request, _res: Response, next: NextFunct
   if (!doc.exists) return next(new AppError(403, 'FORBIDDEN', 'Admin access required'));
   next();
 }
+
+export async function requireActiveCustomer(req: Request, _res: Response, next: NextFunction) {
+  if (!req.user) return next(new AppError(401, 'UNAUTHENTICATED', 'Missing token'));
+  const doc = await db.collection('customers').doc(req.user.uid).get();
+  if (doc.exists && doc.get('status') === 'suspended') {
+    return next(new AppError(403, 'ACCOUNT_SUSPENDED', 'This account has been suspended'));
+  }
+  next();
+}

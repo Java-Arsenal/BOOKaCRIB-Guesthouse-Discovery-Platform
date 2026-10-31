@@ -1,71 +1,75 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Smartphone, Trash2, Ban, CheckCircle } from 'lucide-react';
-import { collection, getDocs, updateDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { listCustomers, setCustomerStatus, deleteCustomer } from '../services/api';
 import '../styling/AdminManagement.css';
 
-interface MobileAppUser {
-  id: string; // Firebase document ID
-  name: string;
-  email: string;
-  lastLogin: string;
-  status: 'Active' | 'Suspended';
+interface Customer {
+  customer_id: string;
+  full_name: string;
+  email: string | null;
+  status: 'active' | 'suspended';
+  created_at: string | null;
 }
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<MobileAppUser[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [busyId, setBusyId] = useState<string | null>(null);
 
-  // Fetch mobile app users from Firebase Firestore 'mobileUsers' collection on load
+  // Fetch mobile-app customer accounts from the Backend API on load
   useEffect(() => {
-    const fetchMobileUsers = async () => {
+    const fetchCustomers = async () => {
       try {
-        const querySnapshot = await getDocs(collection(db, 'mobileUsers'));
-        const fetched: MobileAppUser[] = [];
-        querySnapshot.forEach((document) => {
-          fetched.push({ id: document.id, ...document.data() } as MobileAppUser);
-        });
-        setUsers(fetched);
+        const data = await listCustomers();
+        setCustomers(data);
       } catch (err) {
-        console.error("Error fetching mobile app users: ", err);
+        console.error('Error fetching customers: ', err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchMobileUsers();
+    fetchCustomers();
   }, []);
 
-  // Toggle user account status (Active / Suspended) in Firebase
-  const handleToggleStatus = async (id: string, currentStatus: 'Active' | 'Suspended') => {
-    const newStatus = currentStatus === 'Active' ? 'Suspended' : 'Active';
+  // Toggle an account between active and suspended via the Backend API
+  const handleToggleStatus = async (id: string, currentStatus: 'active' | 'suspended') => {
+    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    setBusyId(id);
     try {
-      const userDocRef = doc(db, 'mobileUsers', id);
-      await updateDoc(userDocRef, { status: newStatus });
-
-      // Update local state instantly
-      setUsers(users.map(u => u.id === id ? { ...u, status: newStatus } : u));
+      await setCustomerStatus(id, newStatus);
+      setCustomers(customers.map(c => c.customer_id === id ? { ...c, status: newStatus } : c));
     } catch (err) {
-      console.error("Error updating user status: ", err);
+      console.error('Error updating customer status: ', err);
+    } finally {
+      setBusyId(null);
     }
   };
 
-  // Permanently delete user record from Firestore
-  const handleRemoveUser = async (id: string) => {
+  // Permanently delete a customer account (Firestore profile + Firebase Auth user) via the Backend API
+  const handleRemoveCustomer = async (id: string) => {
+    setBusyId(id);
     try {
-      await deleteDoc(doc(db, 'mobileUsers', id));
-      setUsers(users.filter(u => u.id !== id));
+      await deleteCustomer(id);
+      setCustomers(customers.filter(c => c.customer_id !== id));
     } catch (err) {
-      console.error("Error removing user record: ", err);
+      console.error('Error removing customer: ', err);
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const filteredUsers = users.filter(
-    u => 
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCustomers = customers.filter(
+    c =>
+      c.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const formatJoined = (iso: string | null) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+  };
 
   return (
     <div className="admin-mgmt-container">
@@ -75,9 +79,9 @@ export default function UserManagement() {
           <p className="admin-mgmt-subtitle">Monitor customers and guests registered on the BOOKaCRIB mobile application</p>
         </div>
         <div className="user-search-wrapper">
-          <input 
-            type="text" 
-            placeholder="Search mobile users..." 
+          <input
+            type="text"
+            placeholder="Search mobile users..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="form-input"
@@ -89,7 +93,7 @@ export default function UserManagement() {
         <thead>
           <tr>
             <th>Customer Account</th>
-            <th>Last Mobile Login</th>
+            <th>Joined</th>
             <th>Account Status</th>
             <th className="table-header-right">Actions</th>
           </tr>
@@ -101,39 +105,44 @@ export default function UserManagement() {
                 Loading mobile app users...
               </td>
             </tr>
-          ) : filteredUsers.length === 0 ? (
+          ) : filteredCustomers.length === 0 ? (
             <tr>
               <td colSpan={4} className="table-empty-cell">
                 No mobile app users found matching your search.
               </td>
             </tr>
           ) : (
-            filteredUsers.map(user => (
-              <tr key={user.id}>
+            filteredCustomers.map(customer => (
+              <tr key={customer.customer_id}>
                 <td>
                   <div className="staff-info-cell">
                     <Smartphone className="staff-icon-muted" />
                     <div>
-                      <div className="staff-name">{user.name}</div>
-                      <div className="staff-email">{user.email}</div>
+                      <div className="staff-name">{customer.full_name}</div>
+                      <div className="staff-email">{customer.email ?? '—'}</div>
                     </div>
                   </div>
                 </td>
-                <td className="table-text-muted">{user.lastLogin}</td>
+                <td className="table-text-muted">{formatJoined(customer.created_at)}</td>
                 <td>
-                  <span className={`role-badge ${user.status === 'Active' ? 'status-active-badge' : 'status-suspended-badge'}`}>
-                    {user.status === 'Active' ? <CheckCircle className="badge-icon" /> : <Ban className="badge-icon" />}
-                    {user.status}
+                  <span className={`role-badge ${customer.status === 'active' ? 'status-active-badge' : 'status-suspended-badge'}`}>
+                    {customer.status === 'active' ? <CheckCircle className="badge-icon" /> : <Ban className="badge-icon" />}
+                    {customer.status === 'active' ? 'Active' : 'Suspended'}
                   </span>
                 </td>
                 <td className="table-cell-right">
-                  <button 
-                    onClick={() => handleToggleStatus(user.id, user.status)} 
-                    className={user.status === 'Active' ? 'revoke-btn-warning' : 'primary-action-btn-sm'}
+                  <button
+                    onClick={() => handleToggleStatus(customer.customer_id, customer.status)}
+                    disabled={busyId === customer.customer_id}
+                    className={customer.status === 'active' ? 'revoke-btn-warning' : 'primary-action-btn-sm'}
                   >
-                    {user.status === 'Active' ? 'Suspend' : 'Restore'}
+                    {customer.status === 'active' ? 'Suspend' : 'Restore'}
                   </button>
-                  <button onClick={() => handleRemoveUser(user.id)} className="revoke-btn">
+                  <button
+                    onClick={() => handleRemoveCustomer(customer.customer_id)}
+                    disabled={busyId === customer.customer_id}
+                    className="revoke-btn"
+                  >
                     <Trash2 className="action-icon-inline" /> Delete
                   </button>
                 </td>

@@ -85,3 +85,46 @@ export async function uploadGuesthouseImage(guesthouseId: string, file: File, ki
   if (!response.ok) throw new Error(`Failed to upload ${kind} image`);
   return await response.json();
 }
+// 5. List all mobile-app customer accounts (admin only)
+export async function listCustomers() {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not signed in');
+
+  const response = await fetch(`${API_BASE_URL}/customers`, {
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error('Failed to fetch customers');
+  const result = await response.json();
+  return result.data || [];
+}
+
+// 6. Suspend or restore a customer account (admin only)
+export async function setCustomerStatus(customerId: string, status: 'active' | 'suspended') {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not signed in');
+
+  const response = await fetch(`${API_BASE_URL}/customers/${customerId}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ status }),
+  });
+  if (!response.ok) throw new Error('Failed to update customer status');
+  return await response.json();
+}
+
+// 7. Permanently delete a customer account (admin only)
+export async function deleteCustomer(customerId: string) {
+  const token = await auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Not signed in');
+
+  const response = await fetch(`${API_BASE_URL}/customers/${customerId}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new Error('Failed to delete customer');
+  }
+}

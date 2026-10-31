@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { AppError } from '../utils/AppError';
 import { FieldValue } from 'firebase-admin/firestore';
 
@@ -15,6 +15,7 @@ export async function createCustomer(req: Request, res: Response, next: NextFunc
             full_name,
             email: email ?? null,
             favourites: [],
+            status: 'active',
             created_at: FieldValue.serverTimestamp(),
         });
     } catch (err: any) {
@@ -26,7 +27,7 @@ export async function createCustomer(req: Request, res: Response, next: NextFunc
 
     res.status(201).json({
         success: true,
-        data: { customer_id: uid, full_name, email: email ?? null, favourites: [] },
+        data: { customer_id: uid, full_name, email: email ?? null, favourites: [], status: 'active' },
     });
 }
 
@@ -90,5 +91,59 @@ export async function removeFavourite(req: Request, res: Response, next: NextFun
     }
 
     await customerRef.update({ favourites: FieldValue.arrayRemove(guesthouseId) });
+    res.status(204).end();
+}
+
+// --- Admin-only endpoints below: managing mobile-app customer accounts ---
+
+export async function listCustomers(_req: Request, res: Response) {
+    const snapshot = await db.collection('customers').get();
+    const data = snapshot.docs.map((d) => {
+        const c = d.data();
+        const createdAt = c.created_at?.toDate ? c.created_at.toDate().toISOString() : null;
+        return {
+            customer_id: c.customer_id ?? d.id,
+            full_name: c.full_name,
+            email: c.email ?? null,
+            status: c.status ?? 'active',
+            created_at: createdAt,
+        };
+    });
+    res.json({ success: true, data });
+}
+
+export async function setCustomerStatus(req: Request, res: Response, next: NextFunction) {
+    const customerId = req.params.customerId;
+    if (typeof customerId !== 'string' || !customerId.trim()) {
+        return next(new AppError(400, 'INVALID_CUSTOMER_ID', 'Customer ID is required'));
+    }
+    const { status } = req.body;
+    const ref = db.collection('customers').doc(customerId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+        return next(new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer profile not found'));
+    }
+    await ref.update({ status });
+    res.json({ success: true, data: { ...doc.data(), status } });
+}
+
+export async function deleteCustomer(req: Request, res: Response, next: NextFunction) {
+    const customerId = req.params.customerId;
+    if (typeof customerId !== 'string' || !customerId.trim()) {
+        return next(new AppError(400, 'INVALID_CUSTOMER_ID', 'Customer ID is required'));
+    }
+    const ref = db.collection('customers').doc(customerId);
+    const doc = await ref.get();
+    if (!doc.exists) {
+        return next(new AppError(404, 'CUSTOMER_NOT_FOUND', 'Customer profile not found'));
+    }
+    await ref.delete();
+    try {
+        await auth.deleteUser(customerId);
+    } catch (err: any) {
+        if (err.code !== 'auth/user-not-found') {
+            return next(err);
+        }
+    }
     res.status(204).end();
 }
