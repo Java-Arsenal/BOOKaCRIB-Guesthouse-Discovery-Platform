@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 13.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://bookacrib-guesthouse-discovery-platform.onrender.com/api",
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "AIzaSyBZ-RRRunVxXPHpaVtlfziTuayaYoJkNHU",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "bookacrib-dev-c2873.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "bookacrib-dev-c2873",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "bookacrib-dev-c2873.firebasestorage.app",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "564203486245",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:564203486245:web:f4b0c345262fdf356d13cc"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
