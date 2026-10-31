@@ -1,14 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-
 import {
   ActivityIndicator,
   FlatList,
-  Image,
+  LayoutAnimation,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,6 +18,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { apiGet } from "../api/client";
 import SearchBar from "../components/SearchBar";
 import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
+
+// Enable LayoutAnimation on older Android versions.
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 export interface Guesthouse {
   id: string;
@@ -29,8 +35,6 @@ export interface Guesthouse {
   reviewsCount?: number;
   description: string;
   amenities: string[];
-  logoUrl?: string;
-  galleryUrls?: string[];
 }
 
 type SortKey = "cheapest" | "rated";
@@ -39,23 +43,11 @@ const SORTS: {
   key: SortKey;
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
-  summary: string;
 }[] = [
-  {
-    key: "cheapest",
-    label: "Cheapest First",
-    icon: "swap-vertical",
-    summary: "Cheapest first",
-  },
-  {
-    key: "rated",
-    label: "Top Rated",
-    icon: "star",
-    summary: "Top rated",
-  },
+  { key: "cheapest", label: "Cheapest", icon: "swap-vertical" },
+  { key: "rated", label: "Top Rated", icon: "star" },
 ];
 
-/** Best-effort icon for an amenity by keyword; falls back to a checkmark. */
 function amenityIcon(amenity: string): keyof typeof Ionicons.glyphMap {
   const lower = amenity.toLowerCase();
   if (lower.includes("wi-fi") || lower.includes("wifi")) return "wifi";
@@ -80,18 +72,12 @@ function SearchResultCard({
   onPress: () => void;
 }) {
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.85}
-      onPress={onPress}
-    >
+    <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
       <View style={styles.imageFrame}>
-        {item.logoUrl ? (
-          <Image source={{ uri: item.logoUrl }} style={styles.cardImage} />
-        ) : null}
         <View style={styles.pricePill}>
           <Text style={styles.priceText}>
-            P{item.pricePerNight} <Text style={styles.perNight}>/ night</Text>
+            P{item.pricePerNight}{" "}
+            <Text style={styles.perNight}>/ night</Text>
           </Text>
         </View>
       </View>
@@ -134,6 +120,8 @@ export default function SearchScreen({ navigation }: any) {
   const [sortBy, setSortBy] = useState<SortKey>("cheapest");
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
   const [listings, setListings] = useState<Guesthouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -163,8 +151,6 @@ export default function SearchScreen({ navigation }: any) {
           reviewsCount: item.rating_count ?? 0,
           description: item.description ?? "",
           amenities: Array.isArray(item.amenities) ? item.amenities : [],
-          logoUrl: item.logo_url,
-          galleryUrls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
         })),
       );
     } catch (err) {
@@ -207,6 +193,11 @@ export default function SearchScreen({ navigation }: any) {
     return Array.from(set).sort();
   }, [listings]);
 
+  function toggleFilters() {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setFiltersOpen((v) => !v);
+  }
+
   function toggleAmenity(amenity: string) {
     setSelectedAmenities((current) =>
       current.includes(amenity)
@@ -214,6 +205,18 @@ export default function SearchScreen({ navigation }: any) {
         : [...current, amenity],
     );
   }
+
+  function clearAll() {
+    setSortBy("cheapest");
+    setSelectedCity("all");
+    setSelectedAmenities([]);
+  }
+
+  // Count of "non-default" filters — drives the badge on the filter button.
+  const activeFilterCount =
+    selectedAmenities.length +
+    (sortBy !== "cheapest" ? 1 : 0) +
+    (selectedCity !== "all" ? 1 : 0);
 
   const processedData = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
@@ -242,18 +245,10 @@ export default function SearchScreen({ navigation }: any) {
     return [...filtered].sort((a, b) => a.pricePerNight - b.pricePerNight);
   }, [listings, searchQuery, selectedCity, selectedAmenities, sortBy]);
 
-  const region =
-    selectedCity !== "all"
-      ? (cities.find((c) => c.key === selectedCity)?.label ?? "Botswana")
-      : "Botswana";
-
-  const sortEntry = SORTS.find((s) => s.key === sortBy);
-  const amenitySummary =
-    selectedAmenities.length > 0 ? ` · ${selectedAmenities.join(" · ")}` : "";
-  const countLabel = `${processedData.length} ${
-    processedData.length === 1 ? "result" : "results"
+  const resultCount = processedData.length;
+  const resultCountLabel = `${resultCount} ${
+    resultCount === 1 ? "result" : "results"
   }`;
-  const summary = `${sortEntry?.summary ?? "Cheapest first"}${amenitySummary} · ${countLabel} in ${region}`;
 
   if (loading) {
     return (
@@ -301,104 +296,170 @@ export default function SearchScreen({ navigation }: any) {
           </TouchableOpacity>
         </View>
 
-        <SearchBar
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          onClear={() => setSearchQuery("")}
-        />
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.chipScroll}
-        >
-          {SORTS.map((s) => {
-            const active = sortBy === s.key;
-            return (
-              <TouchableOpacity
-                key={s.key}
-                style={[styles.chip, active && styles.chipActive]}
-                onPress={() => setSortBy(s.key)}
-              >
-                <Ionicons
-                  name={s.icon}
-                  size={14}
-                  color={
-                    active
-                      ? colors.white
-                      : s.key === "rated"
-                        ? colors.gold
-                        : colors.ink
-                  }
-                />
-                <Text
-                  style={[styles.chipText, active && styles.chipTextActive]}
-                >
-                  {s.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {availableAmenities.length > 0 && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.amenityScroll}
+        {/* Search row: filter button on the left, search bar fills the rest */}
+        <View style={styles.searchRow}>
+          <TouchableOpacity
+            style={[
+              styles.filterButton,
+              filtersOpen && styles.filterButtonOpen,
+            ]}
+            onPress={toggleFilters}
+            accessibilityLabel="Toggle filters"
+            accessibilityState={{ expanded: filtersOpen }}
           >
-            {availableAmenities.map((amenity) => {
-              const active = selectedAmenities.includes(amenity);
-              return (
-                <TouchableOpacity
-                  key={amenity}
-                  style={[
-                    styles.amenityChip,
-                    active && styles.amenityChipActive,
-                  ]}
-                  onPress={() => toggleAmenity(amenity)}
-                >
-                  <Ionicons
-                    name={amenityIcon(amenity)}
-                    size={13}
-                    color={active ? colors.white : colors.slate}
-                  />
-                  <Text
-                    style={[
-                      styles.amenityChipText,
-                      active && styles.amenityChipTextActive,
-                    ]}
-                  >
-                    {amenity}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        )}
+            <Ionicons
+              name="options-outline"
+              size={20}
+              color={filtersOpen ? colors.white : colors.ink}
+            />
+            {activeFilterCount > 0 && (
+              <View style={styles.badge}>
+                <Text style={styles.badgeText}>{activeFilterCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.cityRow}
-        >
-          {cities.map((c) => {
-            const active = selectedCity === c.key;
-            return (
+          <View style={styles.searchBarWrap}>
+            <SearchBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onClear={() => setSearchQuery("")}
+            />
+          </View>
+        </View>
+
+        {/* Expandable filter panel */}
+        {filtersOpen && (
+          <View style={styles.filterPanel}>
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>Sort</Text>
+              <View style={styles.chipRowWrap}>
+                {SORTS.map((s) => {
+                  const active = sortBy === s.key;
+                  return (
+                    <TouchableOpacity
+                      key={s.key}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSortBy(s.key)}
+                    >
+                      <Ionicons
+                        name={s.icon}
+                        size={13}
+                        color={
+                          active
+                            ? colors.white
+                            : s.key === "rated"
+                              ? colors.gold
+                              : colors.ink
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.chipText,
+                          active && styles.chipTextActive,
+                        ]}
+                      >
+                        {s.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>City</Text>
+              <View style={styles.chipRowWrap}>
+                {cities.map((c) => {
+                  const active = selectedCity === c.key;
+                  return (
+                    <TouchableOpacity
+                      key={c.key}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => setSelectedCity(c.key)}
+                    >
+                      <Text
+                        style={[
+                          styles.chipText,
+                          active && styles.chipTextActive,
+                        ]}
+                      >
+                        {c.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionLabel}>
+                Amenities {selectedAmenities.length > 0 && `(${selectedAmenities.length})`}
+              </Text>
+              <ScrollView
+                style={styles.amenityScroll}
+                contentContainerStyle={styles.amenityScrollContent}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.chipRowWrap}>
+                  {availableAmenities.map((amenity) => {
+                    const active = selectedAmenities.includes(amenity);
+                    return (
+                      <TouchableOpacity
+                        key={amenity}
+                        style={[
+                          styles.chip,
+                          active && styles.amenityChipActive,
+                        ]}
+                        onPress={() => toggleAmenity(amenity)}
+                      >
+                        <Ionicons
+                          name={amenityIcon(amenity)}
+                          size={13}
+                          color={active ? colors.white : colors.slate}
+                        />
+                        <Text
+                          style={[
+                            styles.chipText,
+                            active && styles.chipTextActive,
+                          ]}
+                        >
+                          {amenity}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+
+            <View style={styles.filterFooter}>
               <TouchableOpacity
-                key={c.key}
-                style={[styles.cityBadge, active && styles.cityBadgeActive]}
-                onPress={() => setSelectedCity(c.key)}
+                style={styles.clearButton}
+                onPress={clearAll}
+                disabled={activeFilterCount === 0}
               >
                 <Text
-                  style={[styles.cityText, active && styles.cityTextActive]}
+                  style={[
+                    styles.clearButtonText,
+                    activeFilterCount === 0 && styles.clearButtonTextDisabled,
+                  ]}
                 >
-                  {c.label}
+                  Clear all
                 </Text>
               </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+              <TouchableOpacity
+                style={styles.doneButton}
+                onPress={toggleFilters}
+              >
+                <Text style={styles.doneButtonText}>
+                  Show {resultCountLabel}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </View>
 
       <FlatList
@@ -411,11 +472,6 @@ export default function SearchScreen({ navigation }: any) {
             onRefresh={onRefresh}
             tintColor={colors.coral}
           />
-        }
-        ListHeaderComponent={
-          <View style={styles.summaryPill}>
-            <Text style={styles.summaryText}>{summary}</Text>
-          </View>
         }
         renderItem={({ item }) => (
           <SearchResultCard
@@ -470,10 +526,11 @@ const styles = StyleSheet.create({
     color: colors.white,
     fontSize: 14,
   },
+
   header: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
-    paddingBottom: 12,
+    paddingBottom: spacing.sm,
     borderBottomWidth: 1,
     borderColor: colors.sand,
     backgroundColor: colors.cream,
@@ -486,77 +543,130 @@ const styles = StyleSheet.create({
   },
   brandTitle: { fontSize: 26, fontFamily: fonts.display, color: colors.ink },
 
-  chipScroll: { marginTop: 12 },
+  searchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  filterButton: {
+    width: 46,
+    height: 46,
+    borderRadius: radius.control,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  filterButtonOpen: {
+    backgroundColor: colors.coral,
+    borderColor: colors.coral,
+  },
+  badge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 4,
+    borderRadius: 9,
+    backgroundColor: colors.coral,
+    borderWidth: 2,
+    borderColor: colors.cream,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  badgeText: {
+    fontFamily: fonts.semibold,
+    fontSize: 10,
+    color: colors.white,
+  },
+  searchBarWrap: { flex: 1 },
+
+  filterPanel: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.sand,
+  },
+  filterSection: { marginBottom: spacing.sm },
+  filterSectionLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    color: colors.slate,
+    marginBottom: 6,
+  },
+  chipRowWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
   chip: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: radius.pill,
     backgroundColor: colors.white,
-    marginRight: spacing.sm,
     borderWidth: 1,
     borderColor: colors.sand,
   },
-  chipActive: { backgroundColor: colors.coral, borderColor: colors.coral },
-  chipText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink },
-  chipTextActive: { color: colors.white },
-
-  amenityScroll: { marginTop: 8 },
-  amenityChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    marginRight: 6,
-    borderWidth: 1,
-    borderColor: colors.sand,
+  chipActive: {
+    backgroundColor: colors.coral,
+    borderColor: colors.coral,
   },
   amenityChipActive: {
     backgroundColor: colors.teal,
     borderColor: colors.teal,
   },
-  amenityChipText: {
-    fontSize: 12,
+  chipText: {
     fontFamily: fonts.body,
+    fontSize: 12,
     color: colors.slate,
   },
-  amenityChipTextActive: {
-    color: colors.white,
+  chipTextActive: {
     fontFamily: fonts.semibold,
+    color: colors.white,
   },
 
-  cityRow: { marginTop: 12 },
-  cityBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    marginRight: spacing.sm,
-    borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.sand,
-  },
-  cityBadgeActive: { backgroundColor: colors.ink, borderColor: colors.ink },
-  cityText: { fontSize: 12, fontFamily: fonts.semibold, color: colors.slate },
-  cityTextActive: { color: colors.white },
+  amenityScroll: { maxHeight: 120 },
+  amenityScrollContent: { paddingRight: spacing.xs },
 
-  summaryPill: {
-    alignSelf: "flex-start",
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    marginBottom: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.sand,
+  filterFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: spacing.sm,
+    marginTop: spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: colors.sand,
+    gap: spacing.sm,
   },
-  summaryText: { fontSize: 12, fontFamily: fonts.body, color: colors.slate },
+  clearButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
+  clearButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.slate,
+    textDecorationLine: "underline",
+  },
+  clearButtonTextDisabled: { color: colors.sand, textDecorationLine: "none" },
+  doneButton: {
+    flex: 1,
+    maxWidth: 220,
+    height: 44,
+    backgroundColor: colors.coral,
+    borderRadius: radius.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  doneButtonText: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.white,
+  },
 
   emptyFeed: {
     alignItems: "center",
@@ -582,15 +692,6 @@ const styles = StyleSheet.create({
     ...shadow,
   },
   imageFrame: { height: 150, backgroundColor: colors.cream, padding: 12 },
-  cardImage: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    width: "100%",
-    height: "100%",
-  },
   pricePill: {
     alignSelf: "flex-start",
     backgroundColor: colors.white,
