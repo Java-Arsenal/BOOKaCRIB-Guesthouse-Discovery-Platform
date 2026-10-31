@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { LayoutDashboard, Building2, PlusCircle, Users, Search, Download, Plus, Building, MapPin, Star, ChevronRight, TrendingUp, SlidersHorizontal, MessageSquare, UserCheck } from 'lucide-react';
 import { collection, getDocs } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
+import { loadRecentReviews } from '../services/reviews';
 import RegisterGuesthouse from './RegisterGuesthouse';
 import GuesthouseListing from './GuesthouseListing';
 import AdminManagement from './AdminManagement';
@@ -66,33 +67,23 @@ export default function AdminDashboard() {
           const cityString =
             (typeof item.city === 'string' && item.city) ||
             (typeof item.location === 'string' && item.location) ||
-            'Palapye';
+            'Unknown';
 
           return {
             id: document.id,
             name: item.name || 'Unnamed Property',
             location: cityString,
             price: Number(item.price_per_night_bwp ?? item.price ?? 0),
-            badge: item.badge || 'Premier Rated',
+            badge: item.badge || '',
             rating: Number(item.average_rating ?? item.rating ?? 0),
-            reviewsCount: Number(item.reviewsCount ?? 0),
+            reviewsCount: Number(item.rating_count ?? item.reviewsCount ?? 0),
             createdAt: item.created_at ?? item.createdAt,
           };
         });
 
         setGuesthouses(normalizedData);
 
-        const mockReviews: Review[] = normalizedData.flatMap(g =>
-          (g.reviewsCount ?? 0) > 0 ? [{
-            id: `${g.id}-rev`,
-            guesthouseName: g.name,
-            customerName: "Onalenna K.",
-            rating: Number(g.rating ?? 0),
-            comment: "Amazing peaceful stay, clean rooms, and great location!",
-            date: "Today",
-          }] : []
-        );
-        setReviews(mockReviews);
+        setReviews(await loadRecentReviews(Object.fromEntries(normalizedData.map(g => [g.id, g.name]))).catch(() => []));
 
       } catch (err) {
         console.error("Error fetching dashboard inventory from Firebase: ", err);
@@ -115,10 +106,10 @@ export default function AdminDashboard() {
   };
 
   const totalListings = guesthouses.length;
-  const availableCities = ['All', ...Array.from(new Set(guesthouses.map(g => g.location || 'Palapye')))];
+  const availableCities = ['All', ...Array.from(new Set(guesthouses.map(g => g.location || 'Unknown')))];
 
   const locationCounts = guesthouses.reduce((acc: { [key: string]: number }, curr) => {
-    const loc = curr.location || 'Palapye';
+    const loc = curr.location || 'Unknown';
     acc[loc] = (acc[loc] || 0) + 1;
     return acc;
   }, {});
@@ -133,7 +124,7 @@ export default function AdminDashboard() {
     ? [...guesthouses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0]
     : null;
 
-  const hubStays = guesthouses.filter(g => (g.location || 'Palapye') === dominantHub);
+  const hubStays = guesthouses.filter(g => (g.location || 'Unknown') === dominantHub);
   const avgHubPrice = hubStays.length > 0
     ? Math.round(hubStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / hubStays.length)
     : 0;
@@ -153,7 +144,7 @@ export default function AdminDashboard() {
     const rows = guesthouses.map(g => [
       g.id,
       `"${g.name.replace(/"/g, '""')}"`,
-      `"${g.location || 'Palapye'}"`,
+      `"${g.location || 'Unknown'}"`,
       g.price ?? 0,
       `"${g.badge || ''}"`,
       g.rating ?? 0,
@@ -172,7 +163,7 @@ export default function AdminDashboard() {
   };
 
   const filteredGuesthouses = guesthouses.filter(g => {
-    const loc = (g.location || 'Palapye').trim().toLowerCase();
+    const loc = (g.location || 'Unknown').trim().toLowerCase();
     const currentFilter = selectedCityFilter.trim().toLowerCase();
 
     const matchesSearch =
@@ -218,7 +209,7 @@ export default function AdminDashboard() {
         </div>
 
         <div className="sidebar-footer">
-          <p className="sidebar-footer-name">admin@bookacrib.bw</p>
+          <p className="sidebar-footer-name">{auth.currentUser?.email ?? "Admin"}</p>
           <p className="sidebar-footer-role">Management Portal</p>
           <button onClick={handleSignOut} className="sidebar-signout-btn">
             Sign Out
@@ -269,7 +260,7 @@ export default function AdminDashboard() {
               {availableCities.map(city => {
                 const cityCount = city === 'All'
                   ? guesthouses.length
-                  : guesthouses.filter(g => (g.location || 'Palapye').trim().toLowerCase() === city.trim().toLowerCase()).length;
+                  : guesthouses.filter(g => (g.location || 'Unknown').trim().toLowerCase() === city.trim().toLowerCase()).length;
 
                 return (
                   <button
@@ -357,7 +348,7 @@ export default function AdminDashboard() {
                     {premierStay ? `(${premierStay.reviewsCount} reviews)` : '(No reviews)'}
                   </span>
                   <span className="premier-location-label">
-                    {premierStay ? (premierStay.location || 'Palapye') : '-'}
+                    {premierStay ? (premierStay.location || 'Unknown') : '-'}
                   </span>
                 </div>
               </div>
@@ -470,9 +461,9 @@ export default function AdminDashboard() {
                         <tr key={guesthouse.id} onClick={() => { setSearchQuery(guesthouse.name); setActiveView('listings'); }} className="table-row-clickable">
                           <td>
                             <div className="table-guesthouse-name">{guesthouse.name}</div>
-                            <div className="table-guesthouse-badge">{guesthouse.badge}</div>
+                            {guesthouse.badge && <div className="table-guesthouse-badge">{guesthouse.badge}</div>}
                           </td>
-                          <td className="table-location-text">{guesthouse.location || 'Palapye'}</td>
+                          <td className="table-location-text">{guesthouse.location || 'Unknown'}</td>
                           <td className="table-price-text">P{guesthouse.price} / night</td>
                           <td className="table-score-cell">
                             ★ {(guesthouse.rating ?? 5).toFixed(1)} ({guesthouse.reviewsCount})
