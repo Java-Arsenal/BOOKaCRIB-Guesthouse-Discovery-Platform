@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   UIManager,
   View,
+  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,6 +26,7 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export interface Guesthouse {
+  imageUrl?: string;
   id: string;
   name: string;
   location: string;
@@ -73,14 +75,18 @@ function SearchResultCard({
 }) {
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
-      <View style={styles.imageFrame}>
+      <ImageBackground
+        source={{ uri: item.imageUrl || undefined }}
+        style={styles.imageFrame}
+        resizeMode="cover"
+      >
         <View style={styles.pricePill}>
           <Text style={styles.priceText}>
             P{item.pricePerNight}{" "}
             <Text style={styles.perNight}>/ night</Text>
           </Text>
         </View>
-      </View>
+      </ImageBackground>
 
       <View style={styles.details}>
         <View style={styles.titleRow}>
@@ -151,6 +157,12 @@ export default function SearchScreen({ navigation }: any) {
           reviewsCount: item.rating_count ?? 0,
           description: item.description ?? "",
           amenities: Array.isArray(item.amenities) ? item.amenities : [],
+          imageUrl: item.logo_url ?? "",
+          logoUrl: item.logo_url ?? undefined,
+          galleryUrls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
+          hostName: item.contact_details?.contact_name,
+          hostPhone: item.contact_details?.phone,
+          hostEmail: item.contact_details?.email,
         })),
       );
     } catch (err) {

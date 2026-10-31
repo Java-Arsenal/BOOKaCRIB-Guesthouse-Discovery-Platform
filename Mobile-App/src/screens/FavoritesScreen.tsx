@@ -24,6 +24,9 @@ interface Guesthouse {
   rating_count?: number;
   description?: string;
   amenities?: string[];
+  logo_url?: string | null;
+  gallery_urls?: string[];
+  contact_details?: { contact_name?: string; phone?: string; email?: string };
 }
 
 export default function FavoritesScreen({ navigation }: any) {
@@ -91,6 +94,11 @@ export default function FavoritesScreen({ navigation }: any) {
             : undefined,
         description: guesthouse.description ?? "",
         amenities: guesthouse.amenities ?? [],
+        logoUrl: guesthouse.logo_url ?? undefined,
+        galleryUrls: guesthouse.gallery_urls ?? [],
+        hostName: guesthouse.contact_details?.contact_name,
+        hostPhone: guesthouse.contact_details?.phone,
+        hostEmail: guesthouse.contact_details?.email,
       },
     });
   };

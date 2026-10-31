@@ -35,7 +35,7 @@ export default function GuesthouseCard({ item, onPress }: GuesthouseCardProps) {
     >
       {/* Visual Image Block featuring real network image layer with a floating price badge */}
       <ImageBackground
-        source={{ uri: item.imageUrl }}
+        source={{ uri: item.imageUrl || undefined }}
         style={styles.imageBannerFrame}
         resizeMode="cover"
       >
