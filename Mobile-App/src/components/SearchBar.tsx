@@ -1,64 +1,79 @@
 import React from "react";
-import { View, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors, fonts, radius } from "../theme/theme";
+import { colors, fonts, radius, spacing } from "../theme/theme";
 
 interface SearchBarProps {
   searchQuery: string;
   onSearchChange: (text: string) => void;
   onClear: () => void;
-  onFilterPress?: () => void;
 }
 
 export default function SearchBar({
   searchQuery,
   onSearchChange,
   onClear,
-  onFilterPress,
 }: SearchBarProps) {
   return (
-    <View style={styles.box}>
-      <Ionicons name="location-outline" size={18} color={colors.slate} />
+    <View style={s.container}>
+      <Ionicons
+        name="search-outline"
+        size={20}
+        color={colors.slate}
+        style={s.leftIcon}
+      />
       <TextInput
-        style={styles.input}
-        placeholder="Search guesthouse or location..."
+        style={s.input}
+        placeholder="Search guesthouses..."
         placeholderTextColor={colors.slate}
         value={searchQuery}
         onChangeText={onSearchChange}
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="search"
       />
       {searchQuery.length > 0 && (
-        <TouchableOpacity onPress={onClear} hitSlop={8}>
+        <TouchableOpacity
+          onPress={onClear}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={s.clearButton}
+        >
           <Ionicons name="close-circle" size={18} color={colors.slate} />
         </TouchableOpacity>
       )}
-      <TouchableOpacity
-        onPress={onFilterPress}
-        hitSlop={8}
-        style={styles.filter}
-      >
-        <Ionicons name="options-outline" size={20} color={colors.ink} />
-      </TouchableOpacity>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  box: {
+const s = StyleSheet.create({
+  container: {
     flexDirection: "row",
     alignItems: "center",
-    height: 48,
-    paddingHorizontal: 14,
     backgroundColor: colors.white,
     borderWidth: 1,
     borderColor: colors.sand,
-    borderRadius: radius.pill,
+    borderRadius: radius.control,
+    height: 46,
+    paddingHorizontal: spacing.md,
+  },
+  leftIcon: {
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
-    marginLeft: 8,
-    fontSize: 15,
+    height: "100%",
     fontFamily: fonts.body,
+    fontSize: 15,
     color: colors.ink,
+    paddingVertical: 0, // removes default Android padding
   },
-  filter: { marginLeft: 10 },
+  clearButton: {
+    marginLeft: spacing.sm,
+    padding: 4,
+  },
 });
