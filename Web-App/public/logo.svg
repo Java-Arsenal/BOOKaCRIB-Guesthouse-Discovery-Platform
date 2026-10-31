@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 64 64" role="img" aria-label="BOOKaCRIB logo">
+  <rect width="64" height="64" rx="15" fill="#1F1B18"/>
+  <polyline points="14,30 32,14 50,30" fill="none" stroke="#FF5A3C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 52V40a8 8 0 0 1 16 0V52Z" fill="#FFF1E0"/>
+  <circle cx="37" cy="45" r="1.8" fill="#1F1B18"/>
+</svg>
