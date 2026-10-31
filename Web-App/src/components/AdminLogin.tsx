@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShieldAlert, Mail, Lock } from 'lucide-react';
+import { Mail, Lock } from 'lucide-react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
@@ -54,7 +54,7 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
       <div className="admin-auth-card">
         <div className="admin-auth-header">
           <div className="admin-auth-logo-container">
-            <ShieldAlert style={{ width: '2.5rem', height: '2.5rem', color: '#000000' }} />
+            <img src="/logo.svg" alt="BOOKaCRIB" width={72} height={72} />
           </div>
           <h2 className="admin-auth-title">BOOKaCRIB Admin</h2>
           <p className="admin-auth-subtitle">Restricted Executive Portal</p>

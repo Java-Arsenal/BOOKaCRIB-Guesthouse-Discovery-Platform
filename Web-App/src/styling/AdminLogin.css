@@ -33,10 +33,10 @@
 
 .admin-auth-logo-container,
 .login-logo-circle {
-  width: 48px;
-  height: 48px;
-  background-color: rgba(255, 90, 60, 0.1);
-  border-radius: 50%;
+  width: 72px;
+  height: 72px;
+  background-color: transparent;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
