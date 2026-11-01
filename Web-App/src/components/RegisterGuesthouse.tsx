@@ -48,6 +48,7 @@ export default function RegisterGuesthouse() {
 
     setSubmitting(true);
     try {
+      // 1. Send the text data to the Backend API
       const result = await createGuesthouse({
         name,
         description,
@@ -65,6 +66,7 @@ export default function RegisterGuesthouse() {
 
       const guesthouseId = result?.data?.guesthouse_id;
 
+      // 2. Send the images to Cloudinary via the Backend API
       if (guesthouseId) {
         if (logoFile) {
           await uploadGuesthouseImage(guesthouseId, logoFile, 'logo', token);

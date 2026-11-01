@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Building2, Search, Trash2, Star, MapPin, Edit, X } from 'lucide-react';
-import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import '../styling/GuesthouseListing.css';
 
 interface Guesthouse {
@@ -24,6 +24,7 @@ export default function GuesthouseListing() {
   const [editCity, setEditCity] = useState('');
   const [editPrice, setEditPrice] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const fetchListings = async () => {
     try {
@@ -71,17 +72,41 @@ export default function GuesthouseListing() {
 
   const handleSaveEdit = async () => {
     if (!editing) return;
+    setSaving(true);
     try {
-      await updateDoc(doc(db, 'guesthouses', editing.id), {
-        name: editName,
-        city: editCity,
-        price_per_night_bwp: Number(editPrice),
-        description: editDesc
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not logged in");
+
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      // Call the Backend REST API instead of Firestore directly
+      const res = await fetch(`${API_URL}/guesthouses/${editing.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: editName,
+          city: editCity,
+          price_per_night_bwp: Number(editPrice),
+          description: editDesc
+        })
       });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error?.message || "Failed to update listing on backend");
+      }
+
+      // Update local UI
       setListings(prev => prev.map(l => l.id === editing.id ? { ...l, name: editName, city: editCity, price_per_night_bwp: Number(editPrice), description: editDesc } : l));
       setEditing(null);
-    } catch (err) {
-      alert("Failed to update listing");
+      alert("Listing updated successfully via Backend API!");
+    } catch (err: any) {
+      alert(err.message || "Failed to update listing");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -166,7 +191,9 @@ export default function GuesthouseListing() {
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
               <button onClick={() => setEditing(null)} style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleSaveEdit} style={{ padding: '8px 16px', background: '#FF5A3C', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+              <button onClick={handleSaveEdit} disabled={saving} style={{ padding: '8px 16px', background: '#FF5A3C', color: '#fff', border: 'none', borderRadius: '6px', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: 'bold' }}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
