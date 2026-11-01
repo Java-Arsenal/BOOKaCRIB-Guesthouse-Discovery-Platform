@@ -70,7 +70,6 @@ db.collection.mockImplementation((collection: string) => ({
   }),
 }));
 
-// Login tokens the fake Firebase Auth understands
 const tokens: Record<string, { uid: string; email: string }> = {
   'admin-token': { uid: 'admin1', email: 'admin@example.test' },
   'customer-token': { uid: 'c1', email: 'ann@example.test' },
@@ -188,7 +187,7 @@ describe('listCustomers', () => {
         favourites: ['gh1'],
         created_at: { toDate: () => new Date('2026-10-01T10:00:00.000Z') },
       },
-      c2: { full_name: 'Bea' }, // an older profile with missing fields
+      c2: { full_name: 'Bea' },
     };
     const res = response();
     await listCustomers({}, res);
