@@ -44,7 +44,6 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      // 1. Fetch Guesthouses
       const querySnapshot = await getDocs(collection(db, 'guesthouses'));
       const normalizedData: Guesthouse[] = querySnapshot.docs.map(document => {
         const item = document.data() as any;
@@ -62,7 +61,6 @@ export default function AdminDashboard() {
       });
       setGuesthouses(normalizedData);
 
-      // 2. Fetch Real Reviews
       const ratingsSnapshot = await getDocs(collection(db, 'ratings'));
       const realReviews: Review[] = ratingsSnapshot.docs.map(doc => {
         const rev = doc.data();
@@ -103,10 +101,8 @@ export default function AdminDashboard() {
   const handleDeleteReview = async (reviewId: string, guesthouseId: string, score: number) => {
     if (!window.confirm("Delete this review permanently?")) return;
     try {
-      // 1. Delete the rating document
       await deleteDoc(doc(db, 'ratings', reviewId));
       
-      // 2. Update the Guesthouse aggregate scores
       const ghRef = doc(db, 'guesthouses', guesthouseId);
       const ghSnap = await getDoc(ghRef);
       if (ghSnap.exists()) {
@@ -119,8 +115,6 @@ export default function AdminDashboard() {
           average_rating: newCount === 0 ? 0 : newSum / newCount
         });
       }
-      
-      // 3. Refresh the UI
       fetchDashboardData();
     } catch (err) {
       console.error("Failed to delete review: ", err);
@@ -135,14 +129,20 @@ export default function AdminDashboard() {
     acc[loc] = (acc[loc] || 0) + 1;
     return acc;
   }, {});
+  
   const dominantHub = Object.keys(locationCounts).reduce((a, b) => locationCounts[a] > locationCounts[b] ? a : b, 'None');
   const dominantHubCount = dominantHub !== 'None' ? locationCounts[dominantHub] : 0;
   const dominantHubPercentage = totalListings > 0 ? ((dominantHubCount / totalListings) * 100).toFixed(1) : '0';
   
   const premierStay = guesthouses.length > 0 ? [...guesthouses].sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))[0] : null;
-  const hubStays = guesthouses.filter(g => (g.location || 'Palapye') === dominantHub);
-  const avgHubPrice = hubStays.length > 0 ? Math.round(hubStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / hubStays.length) : 0;
   
+  // Calculate stats for ALL cities for the distribution card
+  const cityStats = Object.keys(locationCounts).map(city => {
+    const cityStays = guesthouses.filter(g => (g.location || 'Palapye') === city);
+    const avgPrice = cityStays.reduce((sum, g) => sum + (g.price ?? 0), 0) / cityStays.length;
+    return { name: city, count: locationCounts[city], avgPrice: Math.round(avgPrice) };
+  }).sort((a, b) => b.count - a.count); // Sort by most guesthouses
+
   const allPrices = guesthouses.map(g => g.price ?? 0);
   const minPrice = allPrices.length > 0 ? Math.min(...allPrices) : 0;
   const maxPrice = allPrices.length > 0 ? Math.max(...allPrices) : 0;
@@ -196,7 +196,6 @@ export default function AdminDashboard() {
           </nav>
         </div>
         <div className="sidebar-footer">
-          {/* Dynamically read the logged-in user's email */}
           <p className="sidebar-footer-name">
             {getAuth().currentUser?.email || 'admin@bookacrib.bw'}
           </p>
@@ -292,15 +291,20 @@ export default function AdminDashboard() {
             </div>
 
             <div className="split-sections">
-              <div className="admin-card clickable-card" onClick={() => { if (dominantHub !== 'None') setSelectedCityFilter(dominantHub); }}>
+              <div className="admin-card clickable-card">
                 <div className="city-dist-header"><h3 className="city-dist-title">City Distribution</h3><SlidersHorizontal className="city-dist-icon" /></div>
-                <p className="city-dist-subtitle">Active units and baseline pricing across districts (Click to filter)</p>
+                <p className="city-dist-subtitle">Active units and baseline pricing across districts</p>
                 {totalListings === 0 ? (
                   <p className="empty-state-text">No regional data available yet.</p>
                 ) : (
-                  <div className="city-dist-row">
-                    <div className="city-row-left"><span className="city-dot"></span><span className="city-name-label">{dominantHub}</span></div>
-                    <div className="city-stats-label">Avg. P{avgHubPrice}/night • <span className="city-stats-bold">{dominantHubCount} Stays</span></div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                    {/* Map through all cities */}
+                    {cityStats.map((city) => (
+                      <div key={city.name} className="city-dist-row" onClick={() => setSelectedCityFilter(city.name)} style={{ cursor: 'pointer' }}>
+                        <div className="city-row-left"><span className="city-dot"></span><span className="city-name-label">{city.name}</span></div>
+                        <div className="city-stats-label">Avg. P{city.avgPrice}/night • <span className="city-stats-bold">{city.count} Stays</span></div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
