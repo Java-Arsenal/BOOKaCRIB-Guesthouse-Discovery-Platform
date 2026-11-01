@@ -12,6 +12,12 @@ Built by **Group Arsenal**.
 | **Web Admin Portal** | React + TypeScript + Tailwind. Used by admins to register and manage guesthouse listings and customer accounts | [`Web-App`](../../tree/Web-App) |
 | **Mobile App** | React Native (Expo). Used by travelers to browse, search, favourite, and rate guesthouses | [`Mobile-App`](../../tree/Mobile-App) |
 
+## Features
+
+**Mobile App (travelers):** browse and search guesthouses without an account; filter by city and amenities and sort by price or rating; list view and Google Maps view; guesthouse detail with photos, host contact details, location map, and guest reviews; sign up, log in, and reset a forgotten password; favourite guesthouses; rate guesthouses and view or delete your own ratings; edit your display name.
+
+**Web Admin Portal (admins):** admin login; dashboard with guesthouse metrics, city distribution, and a live customer reviews feed where admins can delete spam reviews; register, edit, and delete guesthouse listings with photos; create admin accounts (a real Firebase Auth account is created through the Backend); suspend, restore, or delete customer accounts.
+
 ## Live Deployment
 
 | Component | Host | URL |
@@ -25,7 +31,7 @@ The Render free tier sleeps after a period of inactivity, so the first request a
 ## Architecture
 
 - **Database:** Firebase Firestore (NoSQL) with four collections: `admins`, `guesthouses`, `customers`, `ratings`. See [SCHEMA.md](SCHEMA.md).
-- **Single write-path:** every write from either client goes through the Node.js API, which validates the request and performs the write (inside a Firestore transaction where the operation must stay atomic, such as ratings). Clients never write to Firestore directly.
+- **Single write-path:** every write from either client goes through the Node.js API, which validates the request and performs the write (inside a Firestore transaction where the operation must stay atomic, such as ratings). Clients do not write guesthouse, customer, favourite, or rating data to Firestore directly. The one exception is the Web-App recording an admin's `lastActive` login time, which is best-effort and ignored if it fails.
 - **Auth:** Firebase Authentication issues ID tokens (JWT); the API verifies them on every protected endpoint. Admin routes additionally require a matching document in the `admins` collection. Customer accounts can be suspended by an admin, and suspended accounts are rejected by the API. Firestore never stores a password or password hash.
 - **Storage:** Cloudinary holds guesthouse logos and gallery images; the URLs are stored on the Firestore guesthouse document. (Firebase Storage now requires a paid Blaze plan, so the project uses Cloudinary's free tier instead.)
 

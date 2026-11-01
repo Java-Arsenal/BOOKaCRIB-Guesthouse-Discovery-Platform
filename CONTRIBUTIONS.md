@@ -25,6 +25,9 @@ Team: Group Arsenal. Contributions below are based on the project's Git history 
 - Routed mobile-user management through the Backend API: list, suspend, and delete customer accounts, with suspension enforced on customer endpoints.
 - Mobile-App: wired Firebase Auth with persistent sessions, built the login screen and `AuthContext`, ran customer-profile creation on every login, connected ratings to the Backend, and removed all mock data.
 - Mobile-App search: dynamic multi-select amenity filters, separate sort and filter controls, a collapsible filter panel, and a clean search bar.
+- Mobile-App features: skeleton loading, a list/Google Maps toggle with maps on the search and detail screens, "Forgot password" through Firebase Auth, editing the display name, deleting your own ratings, and a guest reviews section on the detail screen.
+- Web-App features: admin creation through the Backend (creates a real Firebase Auth account), a role dropdown, editing guesthouse listings through the Backend API, dynamic admin email in the sidebar, a city distribution card covering every city, last-active tracking at login, and a live reviews feed with review moderation.
+- Merged teammates' backend test suites into `main` and removed obsolete feature branches.
 - Displayed guesthouse photos and host details: logo thumbnails in the Web-App listing, and logo, gallery, and host contact details on the Mobile-App search and detail screens.
 - Added the BOOKaCRIB logo, app icons and favicon, and used the logo on the admin login screen.
 - Deployed the platform: Backend on Render, Web-App on Vercel, and the Mobile-App Android APK through EAS Build.

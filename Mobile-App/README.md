@@ -1,4 +1,4 @@
-# BOOKaCRIB: Mobile App 
+# BOOKaCRIB: Mobile App (Customer App)
 
 React Native (Expo) app for the BOOKaCRIB Guesthouse Discovery Platform. Travelers use it to browse, search, favourite, and rate guesthouses. Browsing requires no account; favouriting and rating require login.
 
@@ -66,6 +66,10 @@ eas build -p android --profile preview
 ```
 
 The `preview` profile in `eas.json` produces an installable `.apk` and embeds the production API URL. EAS prints a download link when the build finishes.
+
+## Maps
+
+The search screen can switch between list view and a Google Maps view, and the detail screen shows the guesthouse location on a map. This uses `react-native-maps`; the Google Maps API key is set in `app.json` (`androidGoogleMapsApiKey`). Restrict the key in Google Cloud Console to the Maps SDK for Android, and rotate it if the repository is ever made public.
 
 ## Notes
 

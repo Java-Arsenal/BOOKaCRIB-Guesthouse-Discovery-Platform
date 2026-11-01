@@ -54,6 +54,14 @@ Web-App/
    npm run build
    ```
 
+## Features
+
+- Admin login, which records the admin's last-active time.
+- Dashboard with guesthouse totals, a city distribution card, and a live customer reviews feed where admins can delete a review (the guesthouse's average rating is recalculated).
+- Register, edit, and delete guesthouse listings, with logo and gallery uploads.
+- Admin management: creating an admin creates a real Firebase Auth account through the Backend, with the role chosen from a dropdown (admin or superadmin).
+- Customer management: list, suspend, restore, and delete mobile-app accounts.
+
 ## Notes
 
 - All writes (create/delete guesthouse, upload images, suspend or delete a customer) must go through the backend API. Never write to Firestore directly from this app.

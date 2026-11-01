@@ -11,7 +11,8 @@ Document ID = Firebase Auth UID.
 | admin_id | string | same as document ID |
 | full_name | string | admin display name |
 | email | string | admin email |
-| role | string | e.g., "admin" |
+| role | string | "admin" or "superadmin" |
+| lastActive | string | time of the admin's last login; written by the Web-App on login (best-effort, a failed write is ignored) |
 | created_at | timestamp | server timestamp |
 
 ## customers
