@@ -18,7 +18,7 @@ export default function AdminManagement() {
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('');
+  const [newRole, setNewRole] = useState('admin'); // <-- Default to 'admin'
   const [loading, setLoading] = useState(true);
 
   // Fetch admin staff from Firebase Firestore
@@ -30,7 +30,7 @@ export default function AdminManagement() {
         const data = document.data();
         fetched.push({ 
           id: document.id, 
-          name: data.full_name || data.name || 'Unknown Admin', // Maps backend 'full_name' to frontend 'name'
+          name: data.full_name || data.name || 'Unknown Admin',
           email: data.email || '',
           role: data.role || 'admin',
           lastActive: data.lastActive || 'Just now'
@@ -88,7 +88,7 @@ export default function AdminManagement() {
       setNewName('');
       setNewEmail('');
       setNewPassword('');
-      setNewRole('');
+      setNewRole('admin');
       setShowAddModal(false);
       alert("Admin created successfully! They can now log in.");
       
@@ -164,15 +164,16 @@ export default function AdminManagement() {
           </div>
 
           <div className="form-field-group">
-            <label className="form-label">Custom Role Title</label>
-            <input 
-              type="text" 
-              placeholder="e.g., Lead Operations Manager" 
+            <label className="form-label">Role Permission</label>
+            <select 
               value={newRole} 
               onChange={e => setNewRole(e.target.value)} 
-              className="form-input" 
-              required 
-            />
+              className="form-input"
+              style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #ccc' }}
+            >
+              <option value="admin">Admin</option>
+              <option value="superadmin">Super Admin</option>
+            </select>
           </div>
 
           <button type="submit" className="form-submit-btn">Save Staff</button>
