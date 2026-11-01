@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Trash2, Star, MapPin, Edit, X } from 'lucide-react';
+import { Trash2, Star, MapPin, Edit, X } from 'lucide-react';
 import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import '../styling/GuesthouseListing.css';
