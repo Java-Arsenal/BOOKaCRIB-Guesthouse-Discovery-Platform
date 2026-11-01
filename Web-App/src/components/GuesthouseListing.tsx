@@ -1,118 +1,109 @@
 import { useState, useEffect } from 'react';
-import { Building2, Search, Trash2, Star, MapPin, ImageOff } from 'lucide-react';
-import { getGuesthouses, deleteGuesthouse } from '../services/api';
+import { Building2, Search, Trash2, Star, MapPin, Edit, X } from 'lucide-react';
+import { collection, getDocs, deleteDoc, doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
 import '../styling/GuesthouseListing.css';
 
 interface Guesthouse {
   id: string;
   name: string;
-  location: string;
-  price: number;
-  rating: number;
-  reviewsCount: number;
-  badge?: string;
-  logoUrl?: string;
+  city: string;
+  price_per_night_bwp: number;
+  average_rating: number;
+  description: string;
 }
 
 export default function GuesthouseListing() {
   const [listings, setListings] = useState<Guesthouse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState('All');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchListings() {
-      try {
-        const items = await getGuesthouses();
-        setListings(
-          items.map((item: any) => ({
-            id: item.id || item.guesthouse_id,
-            name: item.name || 'Unnamed Property',
-            location:
-              (typeof item.location === 'string' && item.location) ||
-              item.city ||
-              'Palapye',
-            price: Number(item.price ?? item.price_per_night_bwp ?? 0),
-            rating: Number(item.average_rating ?? item.rating ?? 0),
-            reviewsCount: Number(item.reviewsCount ?? item.rating_count ?? 0),
-            badge: item.badge,
-            logoUrl: item.logo_url,
-          })),
-        );
-      } catch (error) {
-        console.error("Error fetching guesthouses: ", error);
-      } finally {
-        setLoading(false);
-      }
+  // Edit Modal State
+  const [editing, setEditing] = useState<Guesthouse | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCity, setEditCity] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+
+  const fetchListings = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'guesthouses'));
+      const data: Guesthouse[] = snap.docs.map(d => {
+        const item = d.data();
+        return {
+          id: d.id,
+          name: item.name || 'Unnamed',
+          city: item.city || 'Botswana',
+          price_per_night_bwp: item.price_per_night_bwp || 0,
+          average_rating: item.average_rating || 0,
+          description: item.description || '',
+        };
+      });
+      setListings(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
     fetchListings();
   }, []);
 
   const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this listing permanently?")) return;
     try {
-      await deleteGuesthouse(id);
-      setListings(prev => prev.filter(item => item.id !== id));
-    } catch (error) {
-      console.error("Error deleting guesthouse: ", error);
-      alert('Failed to delete guesthouse. Make sure you are signed in as an admin.');
+      await deleteDoc(doc(db, 'guesthouses', id));
+      setListings(prev => prev.filter(l => l.id !== id));
+    } catch (err) {
+      alert("Failed to delete listing");
     }
   };
 
-  const availableLocations = ['All', ...Array.from(new Set(
-    listings.map(item => item.location).filter(Boolean)
-  )).sort()];
+  const openEditModal = (listing: Guesthouse) => {
+    setEditing(listing);
+    setEditName(listing.name);
+    setEditCity(listing.city);
+    setEditPrice(listing.price_per_night_bwp.toString());
+    setEditDesc(listing.description);
+  };
 
-  const filteredListings = listings.filter(item => {
-    const search = searchTerm.toLowerCase();
-    const matchesSearch =
-      (item.name || '').toLowerCase().includes(search) ||
-      (item.location || '').toLowerCase().includes(search);
-    const matchesLocation =
-      selectedLocation === 'All' || item.location === selectedLocation;
-    return matchesSearch && matchesLocation;
-  });
+  const handleSaveEdit = async () => {
+    if (!editing) return;
+    try {
+      await updateDoc(doc(db, 'guesthouses', editing.id), {
+        name: editName,
+        city: editCity,
+        price_per_night_bwp: Number(editPrice),
+        description: editDesc
+      });
+      setListings(prev => prev.map(l => l.id === editing.id ? { ...l, name: editName, city: editCity, price_per_night_bwp: Number(editPrice), description: editDesc } : l));
+      setEditing(null);
+    } catch (err) {
+      alert("Failed to update listing");
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="listings-wrapper">
-        <p style={{ textAlign: 'center', padding: '3rem 0', color: 'rgba(0,0,0,0.6)' }}>
-          Loading live database inventory...
-        </p>
-      </div>
-    );
-  }
+  const filtered = listings.filter(l => l.name.toLowerCase().includes(searchTerm.toLowerCase()));
+
+  if (loading) return <div style={{ padding: '2rem' }}>Loading inventory...</div>;
 
   return (
     <div className="listings-wrapper">
       <div className="listings-header">
         <div>
-          <h2 className="listings-title">Guesthouse Inventory Management</h2>
-          <p className="listings-subtitle">
-            Review, manage, and filter registered stays across Botswana (Live Backend)
-          </p>
+          <h2 className="listings-title">Guesthouse Inventory</h2>
+          <p className="listings-subtitle">Manage and edit live listings</p>
         </div>
-
         <div className="listings-controls">
-          <div className="listings-search-wrapper">
-            <Search className="listings-search-icon" />
-            <input
-              type="text"
-              placeholder="Search listings..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="listings-search"
-            />
-          </div>
-
-          <select
-            value={selectedLocation}
-            onChange={e => setSelectedLocation(e.target.value)}
-            className="filter-select"
-          >
-            {availableLocations.map(city => (
-              <option key={city} value={city}>{city}</option>
-            ))}
-          </select>
+          <input
+            type="text"
+            placeholder="Search listings..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="listings-search"
+          />
         </div>
       </div>
 
@@ -120,85 +111,29 @@ export default function GuesthouseListing() {
         <table className="listings-table">
           <thead>
             <tr>
-              <th>Photo</th>
               <th>Property Name</th>
               <th>Location</th>
-              <th>Category</th>
               <th>Nightly Rate</th>
-              <th>Quality Score</th>
+              <th>Rating</th>
               <th className="table-actions-cell">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredListings.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="listings-empty-cell">
-                  <Building2 className="listings-empty-icon" />
-                  No guesthouse listings found in database matching your filter.
-                </td>
-              </tr>
+            {filtered.length === 0 ? (
+              <tr><td colSpan={5} style={{textAlign: 'center', padding: '2rem'}}>No listings found.</td></tr>
             ) : (
-              filteredListings.map(item => (
+              filtered.map(item => (
                 <tr key={item.id}>
-                  <td>
-                    {item.logoUrl ? (
-                      <img
-                        src={item.logoUrl}
-                        alt={item.name}
-                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '0.375rem' }}
-                      />
-                    ) : (
-                      <div
-                        style={{
-                          width: '48px',
-                          height: '48px',
-                          borderRadius: '0.375rem',
-                          backgroundColor: '#f1f5f9',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        <ImageOff style={{ width: '1rem', height: '1rem', color: '#94a3b8' }} />
-                      </div>
-                    )}
-                  </td>
                   <td className="table-cell-bold">{item.name}</td>
-                  <td>
-                    <span className="location-cell-flex">
-                      <MapPin className="location-cell-icon" />
-                      {item.location || 'Palapye'}
-                    </span>
-                  </td>
-                  <td>
-                    {item.badge
-                      ? <span className="badge-pill">{item.badge}</span>
-                      : <span className="standard-badge-text">Standard</span>}
-                  </td>
-                  <td className="table-cell-bold">P{item.price} / night</td>
-                  <td>
-                    <span className="rating-cell-flex">
-                      <Star className="rating-star-icon" />
-                      {item.rating ?? 0}{' '}
-                      <span className="rating-count-sub">({item.reviewsCount ?? 0})</span>
-                    </span>
-                  </td>
-                  <td className="table-actions-cell">
-                    <button
-                      onClick={() => handleDelete(item.id)}
-                      className="action-btn-danger"
-                      title="Remove listing"
-                    >
-                      <Trash2
-                        style={{
-                          width: '0.75rem',
-                          height: '0.75rem',
-                          display: 'inline',
-                          verticalAlign: 'middle',
-                          marginRight: '2px',
-                        }}
-                      />{' '}
-                      Remove
+                  <td><MapPin size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.city}</td>
+                  <td className="table-cell-bold">P{item.price_per_night_bwp} / night</td>
+                  <td><Star size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.average_rating}</td>
+                  <td className="table-actions-cell" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button onClick={() => openEditModal(item)} className="action-btn-secondary" style={{ background: '#f1f5f9', border: '1px solid #ccc', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer' }}>
+                      <Edit size={12} style={{ display: 'inline', marginRight: 2 }}/> Edit
+                    </button>
+                    <button onClick={() => handleDelete(item.id)} className="action-btn-danger">
+                      <Trash2 size={12} style={{ display: 'inline', marginRight: 2 }}/> Delete
                     </button>
                   </td>
                 </tr>
@@ -207,6 +142,35 @@ export default function GuesthouseListing() {
           </tbody>
         </table>
       </div>
+
+      {/* Edit Modal */}
+      {editing && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', padding: '24px', borderRadius: '12px', width: '90%', maxWidth: '500px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0 }}>Edit Listing</h3>
+              <button onClick={() => setEditing(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20}/></button>
+            </div>
+            
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Name</label>
+            <input type="text" value={editName} onChange={e => setEditName(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '6px' }} />
+
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>City</label>
+            <input type="text" value={editCity} onChange={e => setEditCity(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '6px' }} />
+
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Price (BWP)</label>
+            <input type="number" value={editPrice} onChange={e => setEditPrice(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '16px', border: '1px solid #ccc', borderRadius: '6px' }} />
+
+            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold' }}>Description</label>
+            <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)} rows={4} style={{ width: '100%', padding: '8px', marginBottom: '24px', border: '1px solid #ccc', borderRadius: '6px' }} />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setEditing(null)} style={{ padding: '8px 16px', background: '#f1f5f9', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleSaveEdit} style={{ padding: '8px 16px', background: '#FF5A3C', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

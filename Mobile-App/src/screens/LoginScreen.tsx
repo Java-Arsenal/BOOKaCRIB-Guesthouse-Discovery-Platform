@@ -9,12 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   updateProfile,
+  sendPasswordResetEmail, // <-- Added
   type User,
 } from 'firebase/auth';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -29,12 +31,6 @@ type Mode = 'login' | 'signup';
 
 /**
  * Ensures a `customers/<uid>` doc exists for the given Firebase user.
- * Runs on **every** login and signup — POST /customers is idempotent
- * (returns 409 if the doc already exists), so re-sending is safe and
- * recovers from deleted/missing docs.
- *
- * Backend requires the customer doc for favourites and ratings; without
- * it, those endpoints return 404 CUSTOMER_NOT_FOUND.
  */
 async function ensureCustomerProfile(user: User, fallbackName?: string): Promise<void> {
   try {
@@ -52,7 +48,6 @@ async function ensureCustomerProfile(user: User, fallbackName?: string): Promise
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     if (!msg.toLowerCase().includes('already exists')) {
-      // Non-fatal — auth user exists, doc creation failed. Log for debugging.
       console.warn('[login] ensureCustomerProfile failed:', msg);
     }
   }
@@ -106,13 +101,8 @@ export default function LoginScreen({ navigation }: Props) {
         user = cred.user;
       }
 
-      // Runs on both signup and login. POST /customers is idempotent
-      // (409 if doc exists), so re-sending is safe and heals missing docs.
       await ensureCustomerProfile(user, isSignup ? fullName.trim() : undefined);
 
-      // FavoritesContext fired /customers/me/favourites on auth state change
-      // before the customer doc might have existed. Refresh to clear any
-      // transient 404 error state.
       try {
         await refresh();
       } catch {
@@ -120,6 +110,27 @@ export default function LoginScreen({ navigation }: Props) {
       }
 
       navigation.goBack();
+    } catch (e: any) {
+      setError(humanizeAuthError(e?.code, e?.message));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  // NEW: Forgot Password Handler
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setError('Please enter your email address first, then click "Forgot Password".');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      Alert.alert(
+        "Email Sent",
+        "Check your inbox for a link to reset your password."
+      );
     } catch (e: any) {
       setError(humanizeAuthError(e?.code, e?.message));
     } finally {
@@ -202,6 +213,17 @@ export default function LoginScreen({ navigation }: Props) {
               style={s.input}
               editable={!submitting}
             />
+            
+            {/* NEW: Forgot Password Link */}
+            {!isSignup && (
+              <Pressable
+                onPress={handleForgotPassword}
+                disabled={submitting}
+                style={s.forgotButton}
+              >
+                <Text style={s.forgotText}>Forgot Password?</Text>
+              </Pressable>
+            )}
           </View>
 
           {error && (
@@ -347,6 +369,16 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: colors.ink,
     backgroundColor: colors.white,
+  },
+  forgotButton: {
+    alignSelf: 'flex-end',
+    marginTop: spacing.xs,
+    paddingVertical: spacing.xs,
+  },
+  forgotText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
+    color: colors.coral,
   },
   errorBanner: {
     flexDirection: 'row',

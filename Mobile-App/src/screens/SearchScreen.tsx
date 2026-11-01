@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import MapView, { Marker } from "react-native-maps"; // <-- IMPORT MAP
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 
 import { apiGet } from "../api/client";
 import SearchBar from "../components/SearchBar";
@@ -70,6 +70,26 @@ function amenityIcon(amenity: string): keyof typeof Ionicons.glyphMap {
   return "checkmark-circle-outline";
 }
 
+// NEW: Skeleton Card Component
+function SkeletonCard() {
+  return (
+    <View style={[styles.card, { opacity: 0.6 }]}>
+      <View style={[styles.imageFrame, { backgroundColor: colors.sand }]} />
+      <View style={styles.details}>
+        <View style={{ width: "70%", height: 20, backgroundColor: colors.sand, borderRadius: 4, marginBottom: 8 }} />
+        <View style={{ width: "40%", height: 14, backgroundColor: colors.sand, borderRadius: 4, marginBottom: 16 }} />
+        <View style={{ flexDirection: "row", gap: 6, marginBottom: 16 }}>
+          <View style={{ width: 60, height: 24, backgroundColor: colors.sand, borderRadius: radius.pill }} />
+          <View style={{ width: 50, height: 24, backgroundColor: colors.sand, borderRadius: radius.pill }} />
+          <View style={{ width: 70, height: 24, backgroundColor: colors.sand, borderRadius: radius.pill }} />
+        </View>
+        <View style={{ height: 1, backgroundColor: colors.sand, marginVertical: 12 }} />
+        <View style={{ width: "50%", height: 16, backgroundColor: colors.sand, borderRadius: 4, alignSelf: "center" }} />
+      </View>
+    </View>
+  );
+}
+
 function SearchResultCard({ item, onPress }: { item: Guesthouse; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
@@ -120,7 +140,7 @@ export default function SearchScreen({ navigation }: any) {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"list" | "map">("list"); // <-- NEW STATE
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   const [listings, setListings] = useState<Guesthouse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -221,13 +241,23 @@ export default function SearchScreen({ navigation }: any) {
   const resultCount = processedData.length;
   const resultCountLabel = `${resultCount} ${resultCount === 1 ? "result" : "results"}`;
 
+  // NEW: Skeleton Loading UI
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.centered}>
-          <ActivityIndicator color={colors.coral} />
-          <Text style={styles.centeredText}>Loading guesthouses...</Text>
+        <View style={styles.header}>
+          <View style={styles.headerTop}>
+            <Text style={styles.brandTitle}>BOOKaCRIB</Text>
+            <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: colors.sand }} />
+          </View>
+          <View style={styles.searchRow}>
+            <View style={[styles.filterButton, { backgroundColor: colors.sand, borderColor: colors.sand }]} />
+            <View style={[styles.searchBarWrap, { height: 46, backgroundColor: colors.sand, borderRadius: radius.control }]} />
+          </View>
         </View>
+        <ScrollView contentContainerStyle={{ paddingBottom: spacing.xl }}>
+          {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -268,16 +298,8 @@ export default function SearchScreen({ navigation }: any) {
             <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} onClear={() => setSearchQuery("")} />
           </View>
 
-          {/* MAP/LIST TOGGLE BUTTON */}
-          <TouchableOpacity
-            style={styles.toggleViewButton}
-            onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
-          >
-            <Ionicons
-              name={viewMode === "list" ? "map-outline" : "list-outline"}
-              size={20}
-              color={colors.ink}
-            />
+          <TouchableOpacity style={styles.toggleViewButton} onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}>
+            <Ionicons name={viewMode === "list" ? "map-outline" : "list-outline"} size={20} color={colors.ink} />
           </TouchableOpacity>
         </View>
 
@@ -341,7 +363,6 @@ export default function SearchScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* CONDITIONAL RENDERING: LIST vs MAP */}
       {viewMode === "list" ? (
         <FlatList
           data={processedData}
@@ -363,6 +384,7 @@ export default function SearchScreen({ navigation }: any) {
         />
       ) : (
         <MapView
+          provider={PROVIDER_GOOGLE}
           style={styles.map}
           initialRegion={{
             latitude: processedData[0]?.latitude ?? -24.6282, 

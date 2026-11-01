@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,14 +7,16 @@ import {
   TouchableOpacity,
   Linking,
   Image,
+  ActivityIndicator,
 } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import RatingInput from "../components/RatingInput";
 import FavoriteButton from "../components/FavoriteButton";
+import { apiRequest } from "../api/client"; // <-- Added this import
 import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
 
 export default function GuesthouseDetailScreen() {
@@ -23,6 +25,28 @@ export default function GuesthouseDetailScreen() {
 
   const guesthouse = route.params?.guesthouse;
   const [rateOpen, setRateOpen] = useState(false);
+  
+  // NEW: State for reviews
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+
+  // NEW: Fetch reviews when the screen loads
+  useEffect(() => {
+    if (!guesthouse?.id) return;
+    
+    const fetchReviews = async () => {
+      try {
+        const data = await apiRequest(`/ratings/guesthouse/${guesthouse.id}`);
+        setReviews(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.log("Failed to load reviews:", error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    fetchReviews();
+  }, [guesthouse?.id]);
 
   const openMaps = () => {
     const query = encodeURIComponent(
@@ -101,9 +125,7 @@ export default function GuesthouseDetailScreen() {
             </Text>
           </View>
 
-          <View
-            style={[styles.row, { marginTop: spacing.md, gap: spacing.sm }]}
-          >
+          <View style={[styles.row, { marginTop: spacing.md, gap: spacing.sm }]}>
             <View style={styles.pill}>
               <Ionicons name="star" size={14} color={colors.gold} />
               <Text style={styles.pillText}>
@@ -176,6 +198,38 @@ export default function GuesthouseDetailScreen() {
           <Text style={styles.body}>{guesthouse.description}</Text>
         </View>
 
+        {/* NEW: Guest Reviews */}
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Guest Reviews</Text>
+          
+          {reviewsLoading ? (
+            <ActivityIndicator size="small" color={colors.coral} style={{ marginTop: 10, alignSelf: "flex-start" }} />
+          ) : reviews.length === 0 ? (
+            <Text style={styles.body}>No reviews yet. Be the first to rate this stay!</Text>
+          ) : (
+            reviews.map((rev, index) => (
+              <View 
+                key={rev.rating_id || index} 
+                style={[
+                  styles.reviewItem, 
+                  index !== reviews.length - 1 && styles.reviewDivider
+                ]}
+              >
+                <View style={styles.reviewHeader}>
+                  <View style={styles.row}>
+                    <Ionicons name="star" size={14} color={colors.gold} />
+                    <Text style={styles.reviewScore}>{rev.score}.0</Text>
+                  </View>
+                  <Text style={styles.reviewAuthor}>Verified Guest</Text>
+                </View>
+                <Text style={styles.reviewComment}>
+                  "{rev.comment || "Great stay!"}"
+                </Text>
+              </View>
+            ))
+          )}
+        </View>
+
         {/* Amenities */}
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Key Amenities</Text>
@@ -194,12 +248,11 @@ export default function GuesthouseDetailScreen() {
             <Text style={styles.sectionTitle}>Location</Text>
             <TouchableOpacity style={styles.pill} onPress={openMaps}>
               <Ionicons name="compass-outline" size={14} color={colors.ink} />
-              <Text style={styles.pillText}>Open in Google Maps</Text>
+              <Text style={styles.pillText}>Google Maps</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.body}>{guesthouse.location}, Botswana</Text>
           
-          {/* --- NEW INTERACTIVE MAP --- */}
           {guesthouse.latitude && guesthouse.longitude ? (
             <TouchableOpacity 
               activeOpacity={0.9} 
@@ -207,6 +260,7 @@ export default function GuesthouseDetailScreen() {
               style={styles.mapWrapper}
             >
               <MapView
+                provider={PROVIDER_GOOGLE}
                 style={styles.map}
                 initialRegion={{
                   latitude: guesthouse.latitude,
@@ -214,7 +268,6 @@ export default function GuesthouseDetailScreen() {
                   latitudeDelta: 0.02,
                   longitudeDelta: 0.02,
                 }}
-                // Disable interaction here so the whole map acts as a button to open Google Maps
                 scrollEnabled={false}
                 zoomEnabled={false}
                 pitchEnabled={false}
@@ -235,7 +288,6 @@ export default function GuesthouseDetailScreen() {
               <Text style={styles.fallbackText}>Exact coordinates not available.</Text>
             </View>
           )}
-          {/* --- END MAP --- */}
         </View>
       </ScrollView>
 
@@ -243,7 +295,15 @@ export default function GuesthouseDetailScreen() {
         visible={rateOpen}
         guesthouseId={guesthouse.id}
         guesthouseName={guesthouse.name}
-        onClose={() => setRateOpen(false)}
+        onClose={() => {
+          setRateOpen(false);
+          // Optional: refresh the reviews list when the modal closes
+          const fetchReviews = async () => {
+            const data = await apiRequest(`/ratings/guesthouse/${guesthouse.id}`);
+            setReviews(Array.isArray(data) ? data : []);
+          };
+          fetchReviews();
+        }}
       />
     </SafeAreaView>
   );
@@ -386,6 +446,40 @@ const styles = StyleSheet.create({
     color: colors.slate,
     lineHeight: 22,
   },
+  
+  // NEW: Review Styles
+  reviewItem: {
+    paddingVertical: spacing.sm,
+  },
+  reviewDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.sand,
+  },
+  reviewHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  reviewScore: {
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    color: colors.ink,
+    marginLeft: 4,
+  },
+  reviewAuthor: {
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.slate,
+  },
+  reviewComment: {
+    fontFamily: fonts.body,
+    fontSize: 14,
+    color: colors.slate,
+    fontStyle: "italic",
+    lineHeight: 20,
+  },
+
   amenityWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   amenityChip: {
     paddingHorizontal: 12,
