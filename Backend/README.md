@@ -1,94 +1,103 @@
-# BOOKaCRIB  Backend API
+# BOOKaCRIB: Backend API
 
-Node.js/Express REST API for the BOOKaCRIB Guesthouse Discovery Platform. This is the **single source of truth for all writes**: the web admin portal and mobile app never write to Firestore directly; they call this API, which authenticates the request, validates the payload, and uses Firestore transactions where an operation must remain atomic.
-
-**Team:** Allen Meti, Thabiso Siele, Obakeng Molebatsi
+Node.js/Express REST API for the BOOKaCRIB Guesthouse Discovery Platform. This is the single source of truth for authentication, validation, and atomic write operations (ratings and favourites).
 
 ## Tech Stack
 
-- Node.js / Express.js
+- Node.js / Express.js (TypeScript)
 - Firebase Admin SDK (Firestore + Auth)
 - Cloudinary for guesthouse images
-- Joi / express-validator for input validation
-- Jest for unit/integration tests
-- Postman for manual endpoint testing
+- Joi for input validation
 
 ## Project Structure
 
 ```
 Backend/
 ├── src/
-│   ├── config/                # Firebase Admin and Cloudinary
-│   ├── controllers/           # Admin and guesthouse endpoints
-│   ├── middleware/            # Auth, validation, and error handling
-│   ├── routes/                # Admin and guesthouse routes
-│   ├── schemas/               # Joi request schemas
-│   ├── utils/
+│   ├── config/        # Firebase Admin and Cloudinary
+│   ├── controllers/   # Admin, guesthouse, customer, and rating endpoints
+│   ├── middleware/    # Auth (verifyToken, requireAdmin, requireActiveCustomer),
+│   │                  # validation, and error handling
+│   ├── routes/        # Express routes
+│   ├── schemas/       # Joi request schemas
 │   ├── app.ts
 │   └── server.ts
-├── scripts/                   # Admin creation and emulator seed scripts
-├── postman/                   # API collection
-├── firebase.json
+├── scripts/           # Seed scripts
 ├── firestore.rules
-├── .env.example
-├── package.json
-└── tsconfig.json
+└── package.json
 ```
 
-## Setup
+## Main Endpoints
+
+| Method | Path | Access |
+|---|---|---|
+| GET | `/api/health` | Public |
+| GET | `/api/guesthouses` | Public |
+| POST / DELETE | `/api/guesthouses`, `/api/guesthouses/:id` | Admin |
+| POST | `/api/guesthouses/:id/images` | Admin |
+| POST / GET | `/api/customers`, `/api/customers/me` | Signed-in customer |
+| PUT / DELETE | `/api/customers/me/favourites/:guesthouseId` | Active customer |
+| GET | `/api/customers` | Admin (list customers) |
+| PATCH | `/api/customers/:customerId/status` | Admin (suspend or restore) |
+| DELETE | `/api/customers/:customerId` | Admin (removes profile and login) |
+| POST / GET | `/api/admins`, `/api/admins/me` | Admin |
+| POST | `/api/ratings` | Active customer |
+
+## Setup and Run
+
+1. **Install dependencies:**
+
+   ```bash
+   npm install
+   ```
+
+2. **Environment variables.** Create a `.env` file in `Backend/`:
+
+   ```
+   PORT=5000
+   FIREBASE_PROJECT_ID=your_project_id
+   FIREBASE_CLIENT_EMAIL=your_service_account_email
+   FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+   CLOUDINARY_CLOUD_NAME=your_cloud_name
+   CLOUDINARY_API_KEY=your_api_key
+   CLOUDINARY_API_SECRET=your_api_secret
+   CORS_ORIGINS=http://localhost:5173
+   ```
+
+   Get the Firebase values from Firebase Console, Project Settings, Service Accounts, Generate new private key. Service account key files are gitignored and must never be committed. `CORS_ORIGINS` is a comma-separated list of allowed web origins.
+
+3. **Seed data (optional):** if the database is empty, populate it with test guesthouses:
+
+   ```bash
+   npx tsx scripts/seedGuesthouses.ts
+   ```
+
+4. **Start the API:**
+
+   ```bash
+   npm run dev
+   ```
+
+5. **Production build and start:**
+
+   ```bash
+   npm run build
+   npm start
+   ```
+
+## Deployment (Render)
+
+- Root directory: `Backend`
+- Build command: `npm install && npm run build`
+- Start command: `npm start`
+- Set the same environment variables as above. Set `CORS_ORIGINS` to include the deployed Web-App URL.
+
+## First Admin Account
+
+Admin routes require an existing admin, so the very first admin is created with a script that uses the Firebase Admin SDK directly. It creates the Firebase Auth user and writes the matching document to the `admins` collection (document ID = the user's UID):
 
 ```bash
-git clone git@github.com:Java-Arsenal/BOOKaCRIB-Guesthouse-Discovery-Platform.git
-cd BOOKaCRIB-Guesthouse-Discovery-Platform
-git checkout Backend
-cd Backend
-
-npm install
-cp .env.example .env
+npx tsx scripts/createFirstAdmin.ts you@example.com "Password123!" "Your Name"
 ```
 
-The example environment targets the local Auth and Firestore emulators. Service-account credentials are only needed when connecting to a non-emulated Firebase project. Set the three Cloudinary values in `.env` to enable image uploads.
-
-Start the emulators in one terminal. Java 21 or later is recommended; Firebase CLI currently warns that support for older Java versions will be dropped.
-```bash
-npm run emulators
-```
-
-In another terminal, from `Backend/`, seed the local Auth and Firestore data and start the API:
-```bash
-npm run seed:emulator
-npm run dev
-```
-
-The emulator UI is at `http://127.0.0.1:4000`; the API is at `http://127.0.0.1:5000`. The seed script creates `admin@example.test` with password `local-admin-password`, two guesthouses, one customer, and one rating. Import `postman/BOOKaCRIB-Backend.postman_collection.json` and run **Sign in seeded admin** first to populate the bearer token.
-
-## Task Split 
-
-1. **Auth & Admins** : Firebase Auth integration, ID token middleware, admin account creation.
-2. **Guesthouses** : CRUD endpoints, Cloudinary image upload handling, Firestore writes.
-3. **Customers & Ratings** : favourites, rating submission/edit, the rating + `average_rating` transaction (the one piece that must stay perfectly atomic, test this in isolation).
-
-## Firestore Collections
-
-- `admins`: admin_id, full_name, email, role, created_at
-- `guesthouses`: guesthouse_id, created_by, name, logo_url, gallery_urls[], description, amenities[], location (latitude, longitude), price_per_night_bwp, city, country, contact_details, average_rating, rating_sum, rating_count, created_at
-- `customers`: customer_id (= Firebase Auth UID), full_name, email, favourites[], created_at
-- `ratings`: rating_id (`{customer_id}_{guesthouse_id}`), guesthouse_id, customer_id, score, comment, created_at, updated_at
-
-`rating_sum` and `rating_count` are maintained transactionally with each rating create, edit, or delete. `average_rating` is `rating_sum / rating_count` (or `0` when there are no ratings). Existing guesthouse documents without the aggregate fields are recalculated from their ratings the first time a rating changes.
-
-Customer favourites are managed through authenticated `GET /api/customers/me/favourites`, `PUT /api/customers/me/favourites/:guesthouseId`, and `DELETE /api/customers/me/favourites/:guesthouseId` endpoints. These routes require the caller's customer profile and never expose another customer's saved list.
-
-## Testing
-
-```bash
-npm test -- --runInBand
-```
-
-The regression suite exercises ratings, authenticated customer favourites, and the guesthouse image-upload HTTP route. Upload tests send a valid PNG through multipart parsing and verify logo/gallery persistence and the Cloudinary cleanup call when the Firestore write fails. Cloudinary and Firestore are mocked at the service boundary, so these tests verify application rollback behavior without uploading to a live account; a staging-credential smoke test is still required to validate the external services end to end.
-
-Use the shared Postman collection to test endpoints manually before mobile/web integration.
-
-## Security Rules
-
-`firestore.rules` allows public reads of guesthouses and ratings while denying client writes to all collections. The API uses the Admin SDK for writes. Test rule changes with the Firebase emulator before deploying.
+After that, further admins can be created from the Web-App.
