@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Shield, UserPlus, Trash2 } from 'lucide-react';
-import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { auth, db } from '../firebase';
 import '../styling/AdminManagement.css';
 
 interface AdminMember {
@@ -17,57 +17,90 @@ export default function AdminManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [newRole, setNewRole] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // Fetch admin staff from Firebase Firestore on load
-  useEffect(() => {
-    const fetchAdmins = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, 'admins'));
-        const fetched: AdminMember[] = [];
-        querySnapshot.forEach((document) => {
-          fetched.push({ id: document.id, ...document.data() } as AdminMember);
+  // Fetch admin staff from Firebase Firestore
+  const fetchAdmins = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'admins'));
+      const fetched: AdminMember[] = [];
+      querySnapshot.forEach((document) => {
+        const data = document.data();
+        fetched.push({ 
+          id: document.id, 
+          name: data.full_name || data.name || 'Unknown Admin', // Maps backend 'full_name' to frontend 'name'
+          email: data.email || '',
+          role: data.role || 'admin',
+          lastActive: data.lastActive || 'Just now'
         });
-        setAdmins(fetched);
-      } catch (err) {
-        console.error("Error fetching admin team: ", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+      });
+      setAdmins(fetched);
+    } catch (err) {
+      console.error("Error fetching admin team: ", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchAdmins();
   }, []);
 
   const handleAddAdmin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newName || !newEmail || !newRole) return;
+    if (!newName || !newEmail || !newPassword || !newRole) {
+      alert("Please fill in all fields including a password.");
+      return;
+    }
 
     try {
-      const newMemberData = {
-        name: newName,
-        email: newEmail,
-        role: newRole,
-        lastActive: 'Just now',
-        createdAt: new Date()
-      };
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error("Not logged in");
 
-      // Save to Firebase Firestore 'admins' collection
-      const docRef = await addDoc(collection(db, 'admins'), newMemberData);
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      
+      // 1. Call the backend to create the Firebase Auth user + Firestore doc
+      const response = await fetch(`${API_URL}/admins`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          full_name: newName,
+          email: newEmail,
+          password: newPassword,
+          role: newRole
+        })
+      });
 
-      // Update local state instantly
-      setAdmins([...admins, { id: docRef.id, ...newMemberData }]);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error?.message || "Failed to create admin");
+      }
+
+      // 2. Refetch the list from Firestore to get the new list
+      await fetchAdmins();
+
+      // 3. Close modal and clear inputs
       setNewName('');
       setNewEmail('');
+      setNewPassword('');
       setNewRole('');
       setShowAddModal(false);
-    } catch (err) {
+      alert("Admin created successfully! They can now log in.");
+      
+    } catch (err: any) {
       console.error("Error adding admin member: ", err);
+      alert(err.message || "Failed to add admin");
     }
   };
 
   const handleRemove = async (id: string) => {
+    if (!window.confirm("Are you sure you want to revoke this admin's access?")) return;
+    
     try {
       // Permanently delete from Firebase Firestore
       await deleteDoc(doc(db, 'admins', id));
@@ -114,6 +147,19 @@ export default function AdminManagement() {
               onChange={e => setNewEmail(e.target.value)} 
               className="form-input" 
               required 
+            />
+          </div>
+
+          <div className="form-field-group">
+            <label className="form-label">Password</label>
+            <input 
+              type="password" 
+              placeholder="At least 6 characters" 
+              value={newPassword} 
+              onChange={e => setNewPassword(e.target.value)} 
+              className="form-input" 
+              required 
+              minLength={6}
             />
           </div>
 

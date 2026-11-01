@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock } from 'lucide-react';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import '../styling/AdminLogin.css';
 
@@ -41,8 +41,26 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
         return;
       }
 
-      // 3. Authorized admin found, proceed to dashboard
+      // 3. Update the lastActive timestamp for this admin
+      try {
+        const adminDoc = querySnapshot.docs[0];
+        const adminRef = doc(db, 'admins', adminDoc.id);
+        
+        // Format the current date/time nicely (e.g., "Nov 1, 2026, 14:32")
+        const now = new Date().toLocaleString('en-BW', { 
+          dateStyle: 'medium', 
+          timeStyle: 'short' 
+        });
+
+        await updateDoc(adminRef, { lastActive: now });
+      } catch (updateErr) {
+        // Non-fatal error: don't block login if this fails
+        console.warn("Could not update lastActive timestamp:", updateErr);
+      }
+
+      // 4. Authorized admin found, proceed to dashboard
       onSuccess();
+      
     } catch (err: any) {
       console.error("Login error:", err);
       setError('Invalid admin credentials. Please check your email or password.');
