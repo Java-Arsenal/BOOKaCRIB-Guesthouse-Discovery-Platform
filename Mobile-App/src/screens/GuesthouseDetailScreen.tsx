@@ -8,6 +8,7 @@ import {
   Linking,
   Image,
 } from "react-native";
+import MapView, { Marker } from "react-native-maps";
 import { useRoute, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -187,16 +188,54 @@ export default function GuesthouseDetailScreen() {
           </View>
         </View>
 
-        {/* Location */}
+        {/* Location with Map */}
         <View style={styles.card}>
           <View style={styles.locationHeader}>
             <Text style={styles.sectionTitle}>Location</Text>
             <TouchableOpacity style={styles.pill} onPress={openMaps}>
               <Ionicons name="compass-outline" size={14} color={colors.ink} />
-              <Text style={styles.pillText}>Google Maps</Text>
+              <Text style={styles.pillText}>Open in Google Maps</Text>
             </TouchableOpacity>
           </View>
           <Text style={styles.body}>{guesthouse.location}, Botswana</Text>
+          
+          {/* --- NEW INTERACTIVE MAP --- */}
+          {guesthouse.latitude && guesthouse.longitude ? (
+            <TouchableOpacity 
+              activeOpacity={0.9} 
+              onPress={openMaps}
+              style={styles.mapWrapper}
+            >
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: guesthouse.latitude,
+                  longitude: guesthouse.longitude,
+                  latitudeDelta: 0.02,
+                  longitudeDelta: 0.02,
+                }}
+                // Disable interaction here so the whole map acts as a button to open Google Maps
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+              >
+                <Marker
+                  coordinate={{
+                    latitude: guesthouse.latitude,
+                    longitude: guesthouse.longitude,
+                  }}
+                  title={guesthouse.name}
+                />
+              </MapView>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.mapFallback}>
+              <Ionicons name="map-outline" size={24} color={colors.slate} />
+              <Text style={styles.fallbackText}>Exact coordinates not available.</Text>
+            </View>
+          )}
+          {/* --- END MAP --- */}
         </View>
       </ScrollView>
 
@@ -218,8 +257,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: colors.cream,
   },
-  fallbackText: { color: colors.slate, fontSize: 15, fontFamily: fonts.body },
-
+  fallbackText: {
+    color: colors.slate,
+    fontSize: 13,
+    fontFamily: fonts.body,
+    marginTop: 8,
+  },
   topBar: {
     flexDirection: "row",
     paddingHorizontal: spacing.md,
@@ -250,7 +293,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.control,
     backgroundColor: colors.sand,
   },
-
   card: {
     backgroundColor: colors.white,
     marginHorizontal: spacing.md,
@@ -282,7 +324,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   locationText: { fontSize: 14, fontFamily: fonts.body, color: colors.slate },
-
   pill: {
     flexDirection: "row",
     alignItems: "center",
@@ -295,7 +336,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   pillText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink },
-
   priceBox: {
     marginTop: spacing.md,
     padding: 12,
@@ -325,7 +365,6 @@ const styles = StyleSheet.create({
     color: colors.slate,
     marginTop: 8,
   },
-
   hostName: { fontSize: 15, fontFamily: fonts.semibold, color: colors.ink },
   hostRole: { fontSize: 12, fontFamily: fonts.body, color: colors.slate },
   callBtn: {
@@ -335,7 +374,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   callText: { fontSize: 14, fontFamily: fonts.semibold, color: colors.coral },
-
   sectionTitle: {
     fontSize: 17,
     fontFamily: fonts.display,
@@ -361,5 +399,29 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  mapWrapper: {
+    marginTop: spacing.md,
+    width: "100%",
+    height: 180,
+    borderRadius: radius.control,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: colors.sand,
+  },
+  map: {
+    width: "100%",
+    height: "100%",
+  },
+  mapFallback: {
+    marginTop: spacing.md,
+    width: "100%",
+    height: 100,
+    borderRadius: radius.control,
+    backgroundColor: colors.cream,
+    borderWidth: 1,
+    borderColor: colors.sand,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

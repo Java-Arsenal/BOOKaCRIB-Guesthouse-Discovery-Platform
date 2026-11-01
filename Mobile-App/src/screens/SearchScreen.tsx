@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   LayoutAnimation,
   Platform,
   RefreshControl,
@@ -11,22 +12,20 @@ import {
   TouchableOpacity,
   UIManager,
   View,
-  ImageBackground,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import MapView, { Marker } from "react-native-maps"; // <-- IMPORT MAP
 
 import { apiGet } from "../api/client";
 import SearchBar from "../components/SearchBar";
 import { colors, fonts, radius, spacing, shadow } from "../theme/theme";
 
-// Enable LayoutAnimation on older Android versions.
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 export interface Guesthouse {
-  imageUrl?: string;
   id: string;
   name: string;
   location: string;
@@ -37,6 +36,12 @@ export interface Guesthouse {
   reviewsCount?: number;
   description: string;
   amenities: string[];
+  logoUrl?: string | null;
+  galleryUrls?: string[];
+  hostName?: string;
+  hostPhone?: string;
+  hostEmail?: string;
+  country?: string;
 }
 
 type SortKey = "cheapest" | "rated";
@@ -54,8 +59,7 @@ function amenityIcon(amenity: string): keyof typeof Ionicons.glyphMap {
   const lower = amenity.toLowerCase();
   if (lower.includes("wi-fi") || lower.includes("wifi")) return "wifi";
   if (lower.includes("parking")) return "car-outline";
-  if (lower.includes("air") || lower.includes("a/c") || lower.includes("ac"))
-    return "snow-outline";
+  if (lower.includes("air") || lower.includes("a/c") || lower.includes("ac")) return "snow-outline";
   if (lower.includes("kitchen")) return "restaurant-outline";
   if (lower.includes("garden")) return "leaf-outline";
   if (lower.includes("solar")) return "sunny-outline";
@@ -66,38 +70,27 @@ function amenityIcon(amenity: string): keyof typeof Ionicons.glyphMap {
   return "checkmark-circle-outline";
 }
 
-function SearchResultCard({
-  item,
-  onPress,
-}: {
-  item: Guesthouse;
-  onPress: () => void;
-}) {
+function SearchResultCard({ item, onPress }: { item: Guesthouse; onPress: () => void }) {
   return (
     <TouchableOpacity style={styles.card} activeOpacity={0.85} onPress={onPress}>
-      <ImageBackground
-        source={{ uri: item.imageUrl || undefined }}
-        style={styles.imageFrame}
-        resizeMode="cover"
-      >
+      <View style={styles.imageFrame}>
+        {item.logoUrl && (
+          <Image source={{ uri: item.logoUrl }} style={styles.cardImage} />
+        )}
         <View style={styles.pricePill}>
           <Text style={styles.priceText}>
             P{item.pricePerNight}{" "}
             <Text style={styles.perNight}>/ night</Text>
           </Text>
         </View>
-      </ImageBackground>
+      </View>
 
       <View style={styles.details}>
         <View style={styles.titleRow}>
-          <Text style={styles.title} numberOfLines={2}>
-            {item.name}
-          </Text>
+          <Text style={styles.title} numberOfLines={2}>{item.name}</Text>
           <View style={styles.ratingRow}>
             <Ionicons name="star" size={13} color={colors.gold} />
-            <Text style={styles.ratingText}>
-              {item.rating} ({item.reviewsCount ?? 0})
-            </Text>
+            <Text style={styles.ratingText}>{item.rating} ({item.reviewsCount ?? 0})</Text>
           </View>
         </View>
 
@@ -127,6 +120,7 @@ export default function SearchScreen({ navigation }: any) {
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
   const [selectedCity, setSelectedCity] = useState<string>("all");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list"); // <-- NEW STATE
 
   const [listings, setListings] = useState<Guesthouse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,44 +135,32 @@ export default function SearchScreen({ navigation }: any) {
         data.map((item: any) => ({
           id: item.guesthouse_id ?? item.id,
           name: item.name ?? "Unnamed Property",
-          location:
-            item.city ??
-            (typeof item.location === "string" ? item.location : "Botswana"),
-          latitude:
-            typeof item.location?.latitude === "number"
-              ? item.location.latitude
-              : undefined,
-          longitude:
-            typeof item.location?.longitude === "number"
-              ? item.location.longitude
-              : undefined,
+          location: item.city ?? (typeof item.location === "string" ? item.location : "Botswana"),
+          latitude: typeof item.location?.latitude === "number" ? item.location.latitude : undefined,
+          longitude: typeof item.location?.longitude === "number" ? item.location.longitude : undefined,
           pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
           rating: item.average_rating ?? 0,
           reviewsCount: item.rating_count ?? 0,
           description: item.description ?? "",
           amenities: Array.isArray(item.amenities) ? item.amenities : [],
-          imageUrl: item.logo_url ?? "",
-          logoUrl: item.logo_url ?? undefined,
+          logoUrl: item.logo_url ?? null,
           galleryUrls: Array.isArray(item.gallery_urls) ? item.gallery_urls : [],
-          hostName: item.contact_details?.contact_name,
-          hostPhone: item.contact_details?.phone,
-          hostEmail: item.contact_details?.email,
+          hostName: item.contact_details?.contact_name ?? undefined,
+          hostPhone: item.contact_details?.phone ?? undefined,
+          hostEmail: item.contact_details?.email ?? undefined,
+          country: item.country ?? "Botswana",
         })),
       );
     } catch (err) {
       console.error("Failed to load guesthouses:", err);
-      setError(
-        "Could not load guesthouses. Check your connection and try again.",
-      );
+      setError("Could not load guesthouses. Check your connection and try again.");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -186,13 +168,8 @@ export default function SearchScreen({ navigation }: any) {
   }, [load]);
 
   const cities = useMemo(() => {
-    const unique = Array.from(
-      new Set(listings.map((l) => l.location).filter(Boolean)),
-    ).sort();
-    return [
-      { key: "all", label: "All Cities" },
-      ...unique.map((c) => ({ key: c.toLowerCase(), label: c })),
-    ];
+    const unique = Array.from(new Set(listings.map((l) => l.location).filter(Boolean))).sort();
+    return [{ key: "all", label: "All Cities" }, ...unique.map((c) => ({ key: c.toLowerCase(), label: c }))];
   }, [listings]);
 
   const availableAmenities = useMemo(() => {
@@ -212,9 +189,7 @@ export default function SearchScreen({ navigation }: any) {
 
   function toggleAmenity(amenity: string) {
     setSelectedAmenities((current) =>
-      current.includes(amenity)
-        ? current.filter((a) => a !== amenity)
-        : [...current, amenity],
+      current.includes(amenity) ? current.filter((a) => a !== amenity) : [...current, amenity]
     );
   }
 
@@ -224,31 +199,17 @@ export default function SearchScreen({ navigation }: any) {
     setSelectedAmenities([]);
   }
 
-  // Count of "non-default" filters — drives the badge on the filter button.
-  const activeFilterCount =
-    selectedAmenities.length +
-    (sortBy !== "cheapest" ? 1 : 0) +
-    (selectedCity !== "all" ? 1 : 0);
+  const activeFilterCount = selectedAmenities.length + (sortBy !== "cheapest" ? 1 : 0) + (selectedCity !== "all" ? 1 : 0);
 
   const processedData = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-
-    let filtered = listings.filter(
-      (item) =>
-        item.name.toLowerCase().includes(q) ||
-        item.location.toLowerCase().includes(q),
-    );
+    let filtered = listings.filter((item) => item.name.toLowerCase().includes(q) || item.location.toLowerCase().includes(q));
 
     if (selectedCity !== "all") {
-      filtered = filtered.filter(
-        (item) => item.location.toLowerCase() === selectedCity,
-      );
+      filtered = filtered.filter((item) => item.location.toLowerCase() === selectedCity);
     }
-
     if (selectedAmenities.length > 0) {
-      filtered = filtered.filter((item) =>
-        selectedAmenities.every((sel) => item.amenities.includes(sel)),
-      );
+      filtered = filtered.filter((item) => selectedAmenities.every((sel) => item.amenities.includes(sel)));
     }
 
     if (sortBy === "rated") {
@@ -258,9 +219,7 @@ export default function SearchScreen({ navigation }: any) {
   }, [listings, searchQuery, selectedCity, selectedAmenities, sortBy]);
 
   const resultCount = processedData.length;
-  const resultCountLabel = `${resultCount} ${
-    resultCount === 1 ? "result" : "results"
-  }`;
+  const resultCountLabel = `${resultCount} ${resultCount === 1 ? "result" : "results"}`;
 
   if (loading) {
     return (
@@ -277,11 +236,7 @@ export default function SearchScreen({ navigation }: any) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <Ionicons
-            name="cloud-offline-outline"
-            size={42}
-            color={colors.slate}
-          />
+          <Ionicons name="cloud-offline-outline" size={42} color={colors.slate} />
           <Text style={styles.errorText}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={load}>
             <Text style={styles.retryButtonText}>Try again</Text>
@@ -296,51 +251,36 @@ export default function SearchScreen({ navigation }: any) {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.brandTitle}>BOOKaCRIB</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("Profile")} hitSlop={8}>
+            <Ionicons name="person-circle-outline" size={32} color={colors.ink} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.searchRow}>
+          <TouchableOpacity style={[styles.filterButton, filtersOpen && styles.filterButtonOpen]} onPress={toggleFilters}>
+            <Ionicons name="options-outline" size={20} color={filtersOpen ? colors.white : colors.ink} />
+            {activeFilterCount > 0 && (
+              <View style={styles.badge}><Text style={styles.badgeText}>{activeFilterCount}</Text></View>
+            )}
+          </TouchableOpacity>
+
+          <View style={styles.searchBarWrap}>
+            <SearchBar searchQuery={searchQuery} onSearchChange={setSearchQuery} onClear={() => setSearchQuery("")} />
+          </View>
+
+          {/* MAP/LIST TOGGLE BUTTON */}
           <TouchableOpacity
-            onPress={() => navigation.navigate("Profile")}
-            hitSlop={8}
+            style={styles.toggleViewButton}
+            onPress={() => setViewMode(viewMode === "list" ? "map" : "list")}
           >
             <Ionicons
-              name="person-circle-outline"
-              size={32}
+              name={viewMode === "list" ? "map-outline" : "list-outline"}
+              size={20}
               color={colors.ink}
             />
           </TouchableOpacity>
         </View>
 
-        {/* Search row: filter button on the left, search bar fills the rest */}
-        <View style={styles.searchRow}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filtersOpen && styles.filterButtonOpen,
-            ]}
-            onPress={toggleFilters}
-            accessibilityLabel="Toggle filters"
-            accessibilityState={{ expanded: filtersOpen }}
-          >
-            <Ionicons
-              name="options-outline"
-              size={20}
-              color={filtersOpen ? colors.white : colors.ink}
-            />
-            {activeFilterCount > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{activeFilterCount}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-
-          <View style={styles.searchBarWrap}>
-            <SearchBar
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onClear={() => setSearchQuery("")}
-            />
-          </View>
-        </View>
-
-        {/* Expandable filter panel */}
         {filtersOpen && (
           <View style={styles.filterPanel}>
             <View style={styles.filterSection}>
@@ -349,30 +289,9 @@ export default function SearchScreen({ navigation }: any) {
                 {SORTS.map((s) => {
                   const active = sortBy === s.key;
                   return (
-                    <TouchableOpacity
-                      key={s.key}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSortBy(s.key)}
-                    >
-                      <Ionicons
-                        name={s.icon}
-                        size={13}
-                        color={
-                          active
-                            ? colors.white
-                            : s.key === "rated"
-                              ? colors.gold
-                              : colors.ink
-                        }
-                      />
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
-                      >
-                        {s.label}
-                      </Text>
+                    <TouchableOpacity key={s.key} style={[styles.chip, active && styles.chipActive]} onPress={() => setSortBy(s.key)}>
+                      <Ionicons name={s.icon} size={13} color={active ? colors.white : s.key === "rated" ? colors.gold : colors.ink} />
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{s.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -385,19 +304,8 @@ export default function SearchScreen({ navigation }: any) {
                 {cities.map((c) => {
                   const active = selectedCity === c.key;
                   return (
-                    <TouchableOpacity
-                      key={c.key}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => setSelectedCity(c.key)}
-                    >
-                      <Text
-                        style={[
-                          styles.chipText,
-                          active && styles.chipTextActive,
-                        ]}
-                      >
-                        {c.label}
-                      </Text>
+                    <TouchableOpacity key={c.key} style={[styles.chip, active && styles.chipActive]} onPress={() => setSelectedCity(c.key)}>
+                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{c.label}</Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -405,40 +313,15 @@ export default function SearchScreen({ navigation }: any) {
             </View>
 
             <View style={styles.filterSection}>
-              <Text style={styles.filterSectionLabel}>
-                Amenities {selectedAmenities.length > 0 && `(${selectedAmenities.length})`}
-              </Text>
-              <ScrollView
-                style={styles.amenityScroll}
-                contentContainerStyle={styles.amenityScrollContent}
-                nestedScrollEnabled
-                showsVerticalScrollIndicator={false}
-              >
+              <Text style={styles.filterSectionLabel}>Amenities {selectedAmenities.length > 0 && `(${selectedAmenities.length})`}</Text>
+              <ScrollView style={styles.amenityScroll} contentContainerStyle={styles.amenityScrollContent} nestedScrollEnabled showsVerticalScrollIndicator={false}>
                 <View style={styles.chipRowWrap}>
                   {availableAmenities.map((amenity) => {
                     const active = selectedAmenities.includes(amenity);
                     return (
-                      <TouchableOpacity
-                        key={amenity}
-                        style={[
-                          styles.chip,
-                          active && styles.amenityChipActive,
-                        ]}
-                        onPress={() => toggleAmenity(amenity)}
-                      >
-                        <Ionicons
-                          name={amenityIcon(amenity)}
-                          size={13}
-                          color={active ? colors.white : colors.slate}
-                        />
-                        <Text
-                          style={[
-                            styles.chipText,
-                            active && styles.chipTextActive,
-                          ]}
-                        >
-                          {amenity}
-                        </Text>
+                      <TouchableOpacity key={amenity} style={[styles.chip, active && styles.amenityChipActive]} onPress={() => toggleAmenity(amenity)}>
+                        <Ionicons name={amenityIcon(amenity)} size={13} color={active ? colors.white : colors.slate} />
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{amenity}</Text>
                       </TouchableOpacity>
                     );
                   })}
@@ -447,315 +330,117 @@ export default function SearchScreen({ navigation }: any) {
             </View>
 
             <View style={styles.filterFooter}>
-              <TouchableOpacity
-                style={styles.clearButton}
-                onPress={clearAll}
-                disabled={activeFilterCount === 0}
-              >
-                <Text
-                  style={[
-                    styles.clearButtonText,
-                    activeFilterCount === 0 && styles.clearButtonTextDisabled,
-                  ]}
-                >
-                  Clear all
-                </Text>
+              <TouchableOpacity style={styles.clearButton} onPress={clearAll} disabled={activeFilterCount === 0}>
+                <Text style={[styles.clearButtonText, activeFilterCount === 0 && styles.clearButtonTextDisabled]}>Clear all</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.doneButton}
-                onPress={toggleFilters}
-              >
-                <Text style={styles.doneButtonText}>
-                  Show {resultCountLabel}
-                </Text>
+              <TouchableOpacity style={styles.doneButton} onPress={toggleFilters}>
+                <Text style={styles.doneButtonText}>Show {resultCountLabel}</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
       </View>
 
-      <FlatList
-        data={processedData}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.coral}
-          />
-        }
-        renderItem={({ item }) => (
-          <SearchResultCard
-            item={item}
-            onPress={() =>
-              navigation.navigate("GuesthouseDetailScreen", {
-                guesthouse: item,
-              })
-            }
-          />
-        )}
-        ListEmptyComponent={
-          <View style={styles.emptyFeed}>
-            <Ionicons name="search-outline" size={42} color={colors.slate} />
-            <Text style={styles.emptyFeedText}>
-              No properties match your active search options.
-            </Text>
-          </View>
-        }
-      />
+      {/* CONDITIONAL RENDERING: LIST vs MAP */}
+      {viewMode === "list" ? (
+        <FlatList
+          data={processedData}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: spacing.xl }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.coral} />}
+          renderItem={({ item }) => (
+            <SearchResultCard
+              item={item}
+              onPress={() => navigation.navigate("GuesthouseDetailScreen", { guesthouse: item })}
+            />
+          )}
+          ListEmptyComponent={
+            <View style={styles.emptyFeed}>
+              <Ionicons name="search-outline" size={42} color={colors.slate} />
+              <Text style={styles.emptyFeedText}>No properties match your active search options.</Text>
+            </View>
+          }
+        />
+      ) : (
+        <MapView
+          style={styles.map}
+          initialRegion={{
+            latitude: processedData[0]?.latitude ?? -24.6282, 
+            longitude: processedData[0]?.longitude ?? 25.9231,
+            latitudeDelta: 3.0,
+            longitudeDelta: 3.0,
+          }}
+        >
+          {processedData.map((item) => (
+            item.latitude && item.longitude && (
+              <Marker
+                key={item.id}
+                coordinate={{ latitude: item.latitude, longitude: item.longitude }}
+                title={item.name}
+                description={`P${item.pricePerNight} / night`}
+                onCalloutPress={() => navigation.navigate("GuesthouseDetailScreen", { guesthouse: item })}
+              />
+            )
+          ))}
+        </MapView>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
+  centered: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.lg, gap: spacing.md },
   centeredText: { fontFamily: fonts.body, color: colors.slate },
-  errorText: {
-    fontFamily: fonts.body,
-    color: colors.slate,
-    textAlign: "center",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  retryButton: {
-    minHeight: 44,
-    paddingHorizontal: spacing.xl,
-    backgroundColor: colors.coral,
-    borderRadius: radius.control,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  retryButtonText: {
-    fontFamily: fonts.semibold,
-    color: colors.white,
-    fontSize: 14,
-  },
-
-  header: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.sm,
-    borderBottomWidth: 1,
-    borderColor: colors.sand,
-    backgroundColor: colors.cream,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
+  errorText: { fontFamily: fonts.body, color: colors.slate, textAlign: "center", fontSize: 14, lineHeight: 20 },
+  retryButton: { minHeight: 44, paddingHorizontal: spacing.xl, backgroundColor: colors.coral, borderRadius: radius.control, alignItems: "center", justifyContent: "center" },
+  retryButtonText: { fontFamily: fonts.semibold, color: colors.white, fontSize: 14 },
+  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm, borderBottomWidth: 1, borderColor: colors.sand, backgroundColor: colors.cream },
+  headerTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   brandTitle: { fontSize: 26, fontFamily: fonts.display, color: colors.ink },
-
-  searchRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  filterButton: {
-    width: 46,
-    height: 46,
-    borderRadius: radius.control,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.sand,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  filterButtonOpen: {
-    backgroundColor: colors.coral,
-    borderColor: colors.coral,
-  },
-  badge: {
-    position: "absolute",
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    paddingHorizontal: 4,
-    borderRadius: 9,
-    backgroundColor: colors.coral,
-    borderWidth: 2,
-    borderColor: colors.cream,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgeText: {
-    fontFamily: fonts.semibold,
-    fontSize: 10,
-    color: colors.white,
-  },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  filterButton: { width: 46, height: 46, borderRadius: radius.control, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.sand, alignItems: "center", justifyContent: "center" },
+  filterButtonOpen: { backgroundColor: colors.coral, borderColor: colors.coral },
+  badge: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: colors.coral, borderWidth: 2, borderColor: colors.cream, alignItems: "center", justifyContent: "center" },
+  badgeText: { fontFamily: fonts.semibold, fontSize: 10, color: colors.white },
   searchBarWrap: { flex: 1 },
-
-  filterPanel: {
-    marginTop: spacing.sm,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
-    borderTopColor: colors.sand,
-  },
+  toggleViewButton: { width: 46, height: 46, borderRadius: radius.control, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.sand, alignItems: "center", justifyContent: "center" },
+  filterPanel: { marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 1, borderTopColor: colors.sand },
   filterSection: { marginBottom: spacing.sm },
-  filterSectionLabel: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    color: colors.slate,
-    marginBottom: 6,
-  },
-  chipRowWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-  },
-  chip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: radius.pill,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.sand,
-  },
-  chipActive: {
-    backgroundColor: colors.coral,
-    borderColor: colors.coral,
-  },
-  amenityChipActive: {
-    backgroundColor: colors.teal,
-    borderColor: colors.teal,
-  },
-  chipText: {
-    fontFamily: fonts.body,
-    fontSize: 12,
-    color: colors.slate,
-  },
-  chipTextActive: {
-    fontFamily: fonts.semibold,
-    color: colors.white,
-  },
-
+  filterSectionLabel: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 0.8, textTransform: "uppercase", color: colors.slate, marginBottom: 6 },
+  chipRowWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, backgroundColor: colors.white, borderWidth: 1, borderColor: colors.sand },
+  chipActive: { backgroundColor: colors.coral, borderColor: colors.coral },
+  amenityChipActive: { backgroundColor: colors.teal, borderColor: colors.teal },
+  chipText: { fontFamily: fonts.body, fontSize: 12, color: colors.slate },
+  chipTextActive: { fontFamily: fonts.semibold, color: colors.white },
   amenityScroll: { maxHeight: 120 },
   amenityScrollContent: { paddingRight: spacing.xs },
-
-  filterFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: spacing.sm,
-    marginTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: colors.sand,
-    gap: spacing.sm,
-  },
+  filterFooter: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: spacing.sm, marginTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.sand, gap: spacing.sm },
   clearButton: { paddingVertical: spacing.xs, paddingHorizontal: spacing.xs },
-  clearButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    color: colors.slate,
-    textDecorationLine: "underline",
-  },
+  clearButtonText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.slate, textDecorationLine: "underline" },
   clearButtonTextDisabled: { color: colors.sand, textDecorationLine: "none" },
-  doneButton: {
-    flex: 1,
-    maxWidth: 220,
-    height: 44,
-    backgroundColor: colors.coral,
-    borderRadius: radius.control,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  doneButtonText: {
-    fontFamily: fonts.semibold,
-    fontSize: 14,
-    color: colors.white,
-  },
-
-  emptyFeed: {
-    alignItems: "center",
-    marginTop: 40,
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-  },
-  emptyFeedText: {
-    color: colors.slate,
-    fontSize: 14,
-    fontFamily: fonts.body,
-    textAlign: "center",
-  },
-
-  card: {
-    backgroundColor: colors.white,
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.sand,
-    overflow: "hidden",
-    ...shadow,
-  },
-  imageFrame: { height: 150, backgroundColor: colors.cream, padding: 12 },
-  pricePill: {
-    alignSelf: "flex-start",
-    backgroundColor: colors.white,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.sand,
-  },
+  doneButton: { flex: 1, maxWidth: 220, height: 44, backgroundColor: colors.coral, borderRadius: radius.control, alignItems: "center", justifyContent: "center" },
+  doneButtonText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.white },
+  map: { flex: 1, width: "100%", height: "100%" },
+  emptyFeed: { alignItems: "center", marginTop: 40, gap: spacing.sm, paddingHorizontal: spacing.lg },
+  emptyFeedText: { color: colors.slate, fontSize: 14, fontFamily: fonts.body, textAlign: "center" },
+  card: { backgroundColor: colors.white, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.sand, overflow: "hidden", ...shadow },
+  imageFrame: { height: 150, backgroundColor: colors.cream, position: "relative" },
+  cardImage: { width: "100%", height: "100%", borderTopLeftRadius: radius.card, borderTopRightRadius: radius.card },
+  pricePill: { position: "absolute", top: 12, left: 12, backgroundColor: colors.white, paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.sand },
   priceText: { fontSize: 15, fontFamily: fonts.bold, color: colors.ink },
   perNight: { fontSize: 11, fontFamily: fonts.body, color: colors.slate },
   details: { padding: spacing.md },
-  titleRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-  },
-  title: {
-    flex: 1,
-    marginRight: spacing.sm,
-    fontSize: 18,
-    fontFamily: fonts.display,
-    color: colors.ink,
-  },
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingTop: 4,
-  },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  title: { flex: 1, marginRight: spacing.sm, fontSize: 18, fontFamily: fonts.display, color: colors.ink },
+  ratingRow: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 4 },
   ratingText: { fontSize: 13, fontFamily: fonts.semibold, color: colors.ink },
-  locationRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 4,
-  },
+  locationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 4 },
   locationText: { fontSize: 13, fontFamily: fonts.body, color: colors.slate },
   tagRow: { flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 10 },
-  tag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.sand,
-  },
+  tag: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.sand },
   tagText: { fontSize: 11, fontFamily: fonts.body, color: colors.slate },
   divider: { height: 1, backgroundColor: colors.sand, marginVertical: 12 },
-  viewDetails: {
-    fontSize: 14,
-    fontFamily: fonts.semibold,
-    color: colors.coral,
-    textAlign: "center",
-  },
+  viewDetails: { fontSize: 14, fontFamily: fonts.semibold, color: colors.coral, textAlign: "center" },
 });
