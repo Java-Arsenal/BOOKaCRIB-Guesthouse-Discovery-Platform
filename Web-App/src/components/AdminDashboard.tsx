@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Building2, PlusCircle, Users, Search, Download, Plus, Building, MapPin, Star, ChevronRight, TrendingUp, SlidersHorizontal, MessageSquare, Trash2 } from 'lucide-react';
+import { LayoutDashboard, Building2, PlusCircle, Users, Search, Download, Plus, Building, MapPin, Star, ChevronRight, TrendingUp, SlidersHorizontal, MessageSquare, Trash2, Smartphone } from 'lucide-react';
 import { collection, getDocs, deleteDoc, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { getAuth, signOut } from 'firebase/auth';
 import { db } from '../firebase';
 import RegisterGuesthouse from './RegisterGuesthouse';
 import GuesthouseListing from './GuesthouseListing';
 import AdminManagement from './AdminManagement';
+import UserManagement from './UserManagement';
 import '../styling/AdminDashboard.css';
 
 interface Guesthouse {
@@ -31,7 +32,7 @@ interface Review {
 }
 
 export default function AdminDashboard() {
-  const [activeView, setActiveView] = useState<'overview' | 'register' | 'listings' | 'management'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'register' | 'listings' | 'management' | 'users'>('overview');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCityFilter, setSelectedCityFilter] = useState<string>('All');
   const [sortByPrice, setSortByPrice] = useState<'default' | 'asc' | 'desc'>('default');
@@ -193,6 +194,7 @@ export default function AdminDashboard() {
             <button onClick={() => setActiveView('listings')} className={`nav-link ${activeView === 'listings' ? 'active' : ''}`}><Building2 className="nav-icon" /> Guesthouse Listings</button>
             <button onClick={() => setActiveView('register')} className={`nav-link ${activeView === 'register' ? 'active' : ''}`}><PlusCircle className="nav-icon" /> Register Guesthouse</button>
             <button onClick={() => setActiveView('management')} className={`nav-link ${activeView === 'management' ? 'active' : ''}`}><Users className="nav-icon" /> Admin Management</button>
+            <button onClick={() => setActiveView('users')} className={`nav-link ${activeView === 'users' ? 'active' : ''}`}><Smartphone className="nav-icon" /> Mobile Users</button>
           </nav>
         </div>
         <div className="sidebar-footer">
@@ -222,6 +224,8 @@ export default function AdminDashboard() {
           <div className="view-wrapper-padded"><GuesthouseListing /></div>
         ) : activeView === 'management' ? (
           <div className="view-wrapper-padded"><AdminManagement /></div>
+        ) : activeView === 'users' ? (
+          <div className="view-wrapper-padded"><UserManagement /></div>
         ) : (
           <div className="admin-workspace">
             <div className="dashboard-title-container">
