@@ -71,7 +71,7 @@ export default function AdminDashboard() {
           id: doc.id,
           guesthouseId: rev.guesthouse_id,
           guesthouseName: gh ? gh.name : 'Unknown Guesthouse',
-          customerName: "Verified Guest", // Or fetch customer name if you have it
+          customerName: "Verified Guest",
           rating: Number(rev.score ?? 0),
           comment: rev.comment || "Great stay!",
           date: rev.created_at ? new Date(rev.created_at._seconds * 1000).toLocaleDateString() : "Recently"
@@ -196,7 +196,10 @@ export default function AdminDashboard() {
           </nav>
         </div>
         <div className="sidebar-footer">
-          <p className="sidebar-footer-name">admin@bookacrib.bw</p>
+          {/* Dynamically read the logged-in user's email */}
+          <p className="sidebar-footer-name">
+            {getAuth().currentUser?.email || 'admin@bookacrib.bw'}
+          </p>
           <p className="sidebar-footer-role">Management Portal</p>
           <button onClick={handleSignOut} className="sidebar-signout-btn">Sign Out</button>
         </div>
