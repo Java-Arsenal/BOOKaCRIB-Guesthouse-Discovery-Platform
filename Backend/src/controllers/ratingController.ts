@@ -140,19 +140,18 @@ export async function deleteMyRating(req: Request, res: Response, next: NextFunc
 
   try {
     await db.runTransaction(async (transaction) => {
+      
       const ratingSnapshot = await transaction.get(ratingRef);
       if (!ratingSnapshot.exists) return;
 
       const guesthouseSnapshot = await transaction.get(guesthouseRef);
-      transaction.delete(ratingRef);
-      if (!guesthouseSnapshot.exists) return;
+      const aggregate = guesthouseSnapshot.exists
+        ? await readAggregate(transaction, guesthouseId, guesthouseSnapshot.data() ?? {})
+        : undefined;
 
-      const aggregate = await readAggregate(
-        transaction,
-        guesthouseId,
-        guesthouseSnapshot.data() ?? {},
-      );
-      // Clamp the count so legacy or inconsistent data cannot produce a negative rating_count.
+      transaction.delete(ratingRef);
+      if (!aggregate) return;
+
       const score = ratingSnapshot.get('score');
       const sum = aggregate.sum - (typeof score === 'number' ? score : 0);
       const count = Math.max(0, aggregate.count - 1);
