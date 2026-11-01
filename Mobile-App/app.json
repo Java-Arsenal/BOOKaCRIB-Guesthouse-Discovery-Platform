@@ -23,7 +23,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "react-native-maps",
+        {
+          "androidGoogleMapsApiKey": "AIzaSyBncoBkeM0Sb1pz60OHb3KbsXPcci_jAAY"
+        }
+      ]
     ],
     "extra": {
       "eas": {
