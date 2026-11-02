@@ -9,6 +9,7 @@ const guesthouseFields = {
   city: Joi.string().min(2).max(100),
   country: Joi.string().min(2).max(100),
   contact_details: Joi.object().unknown(true),
+  status: Joi.string().valid('active', 'suspended'),
 };
 // Schema for updating a guesthouse (at least one field must be provided)
 export const createGuesthouseSchema = Joi.object({

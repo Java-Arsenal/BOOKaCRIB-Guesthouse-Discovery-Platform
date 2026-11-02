@@ -12,7 +12,9 @@ export async function listGuesthouses(_req: Request, res: Response, next: NextFu
     const snapshot = await guesthouses.get();
     res.json({
       success: true,
-      data: snapshot.docs.map((doc) => ({ guesthouse_id: doc.id, ...doc.data() })),
+      data: snapshot.docs
+        .filter((doc) => doc.data().status !== 'suspended')
+        .map((doc) => ({ guesthouse_id: doc.id, ...doc.data() })),
     });
   } catch (error) {
     next(error);
@@ -26,7 +28,9 @@ export async function getGuesthouse(req: Request, res: Response, next: NextFunct
       return next(new AppError(400, 'INVALID_GUESTHOUSE_ID', 'Guesthouse ID is required'));
     }
     const doc = await guesthouses.doc(guesthouseId).get();
-    if (!doc.exists) return next(new AppError(404, 'GUESTHOUSE_NOT_FOUND', 'Guesthouse not found'));
+    if (!doc.exists || doc.data()?.status === 'suspended') {
+      return next(new AppError(404, 'GUESTHOUSE_NOT_FOUND', 'Guesthouse not found'));
+    }
     res.json({ success: true, data: { guesthouse_id: doc.id, ...doc.data() } });
   } catch (error) {
     next(error);

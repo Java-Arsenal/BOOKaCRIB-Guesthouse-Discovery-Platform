@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Star, MapPin, Edit, X } from 'lucide-react';
-import { collection, getDocs, deleteDoc, doc } from 'firebase/firestore';
+import { Trash2, Star, MapPin, Edit, X, Ban, RotateCcw } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { deleteGuesthouse } from '../services/api';
 import '../styling/GuesthouseListing.css';
 
 interface Guesthouse {
@@ -11,6 +12,7 @@ interface Guesthouse {
   price_per_night_bwp: number;
   average_rating: number;
   description: string;
+  status: 'active' | 'suspended';
 }
 
 export default function GuesthouseListing() {
@@ -25,6 +27,7 @@ export default function GuesthouseListing() {
   const [editPrice, setEditPrice] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [saving, setSaving] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const fetchListings = async () => {
     try {
@@ -38,6 +41,7 @@ export default function GuesthouseListing() {
           price_per_night_bwp: item.price_per_night_bwp || 0,
           average_rating: item.average_rating || 0,
           description: item.description || '',
+          status: item.status === 'suspended' ? 'suspended' : 'active',
         };
       });
       setListings(data);
@@ -55,10 +59,41 @@ export default function GuesthouseListing() {
   const handleDelete = async (id: string) => {
     if (!window.confirm("Delete this listing permanently?")) return;
     try {
-      await deleteDoc(doc(db, 'guesthouses', id));
+      await deleteGuesthouse(id);
       setListings(prev => prev.filter(l => l.id !== id));
     } catch (err) {
       alert("Failed to delete listing");
+    }
+  };
+
+  const handleToggleSuspend = async (item: Guesthouse) => {
+    const nextStatus: 'active' | 'suspended' = item.status === 'suspended' ? 'active' : 'suspended';
+    const message = nextStatus === 'suspended'
+      ? `Suspend "${item.name}"? It will be hidden from the mobile app until you restore it.`
+      : `Restore "${item.name}"? It will be visible in the mobile app again.`;
+    if (!window.confirm(message)) return;
+    setTogglingId(item.id);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (!token) throw new Error('Not logged in');
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+      const res = await fetch(`${API_URL}/guesthouses/${item.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(errBody.error?.message || 'Failed to update listing status');
+      }
+      setListings(prev => prev.map(l => l.id === item.id ? { ...l, status: nextStatus } : l));
+    } catch (err: any) {
+      alert(err.message || 'Failed to update listing status');
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -148,14 +183,19 @@ export default function GuesthouseListing() {
               <tr><td colSpan={5} style={{textAlign: 'center', padding: '2rem'}}>No listings found.</td></tr>
             ) : (
               filtered.map(item => (
-                <tr key={item.id}>
-                  <td className="table-cell-bold">{item.name}</td>
+                <tr key={item.id} style={item.status === 'suspended' ? { opacity: 0.6 } : undefined}>
+                  <td className="table-cell-bold">{item.name}{item.status === 'suspended' && (<span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#fee2e2', color: '#b91c1c', fontWeight: 600 }}>Suspended</span>)}</td>
                   <td><MapPin size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.city}</td>
                   <td className="table-cell-bold">P{item.price_per_night_bwp} / night</td>
                   <td><Star size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.average_rating}</td>
                   <td className="table-actions-cell" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <button onClick={() => openEditModal(item)} className="action-btn-secondary" style={{ background: '#f1f5f9', border: '1px solid #ccc', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer' }}>
                       <Edit size={12} style={{ display: 'inline', marginRight: 2 }}/> Edit
+                    </button>
+                    <button onClick={() => handleToggleSuspend(item)} disabled={togglingId === item.id} className="action-btn-secondary" style={{ background: '#f1f5f9', border: '1px solid #ccc', padding: '6px 10px', borderRadius: '4px', cursor: togglingId === item.id ? 'not-allowed' : 'pointer' }}>
+                      {item.status === 'suspended'
+                        ? (<><RotateCcw size={12} style={{ display: 'inline', marginRight: 2 }}/> Restore</>)
+                        : (<><Ban size={12} style={{ display: 'inline', marginRight: 2 }}/> Suspend</>)}
                     </button>
                     <button onClick={() => handleDelete(item.id)} className="action-btn-danger">
                       <Trash2 size={12} style={{ display: 'inline', marginRight: 2 }}/> Delete
