@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      // 1. Fetch Guesthouses
       const querySnapshot = await getDocs(collection(db, 'guesthouses'));
       const normalizedData: Guesthouse[] = querySnapshot.docs.map(document => {
         const item = document.data() as any;
@@ -62,18 +63,30 @@ export default function AdminDashboard() {
       });
       setGuesthouses(normalizedData);
 
+      // 2. Fetch Real Reviews
       const ratingsSnapshot = await getDocs(collection(db, 'ratings'));
       const realReviews: Review[] = ratingsSnapshot.docs.map(doc => {
         const rev = doc.data();
         const gh = normalizedData.find(g => g.id === rev.guesthouse_id);
+        
+        // Safely parse Firestore dates
+        let dateStr = "Recently";
+        if (rev.created_at) {
+           if (typeof rev.created_at.toDate === 'function') {
+             dateStr = rev.created_at.toDate().toLocaleDateString();
+           } else if (rev.created_at._seconds) {
+             dateStr = new Date(rev.created_at._seconds * 1000).toLocaleDateString();
+           }
+        }
+
         return {
           id: doc.id,
           guesthouseId: rev.guesthouse_id,
-          guesthouseName: gh ? gh.name : 'Unknown Guesthouse',
+          guesthouseName: gh ? gh.name : 'Deleted Property', // Better fallback
           customerName: "Verified Guest",
           rating: Number(rev.score ?? 0),
           comment: rev.comment || "Great stay!",
-          date: rev.created_at ? new Date(rev.created_at._seconds * 1000).toLocaleDateString() : "Recently"
+          date: dateStr
         };
       });
       setReviews(realReviews);
@@ -102,8 +115,10 @@ export default function AdminDashboard() {
   const handleDeleteReview = async (reviewId: string, guesthouseId: string, score: number) => {
     if (!window.confirm("Delete this review permanently?")) return;
     try {
+      // 1. Delete the rating document
       await deleteDoc(doc(db, 'ratings', reviewId));
       
+      // 2. Update the Guesthouse aggregate scores (if the guesthouse still exists)
       const ghRef = doc(db, 'guesthouses', guesthouseId);
       const ghSnap = await getDoc(ghRef);
       if (ghSnap.exists()) {
@@ -116,6 +131,8 @@ export default function AdminDashboard() {
           average_rating: newCount === 0 ? 0 : Math.round((newSum / newCount) * 10) / 10
         });
       }
+      
+      // 3. Refresh the UI
       fetchDashboardData();
     } catch (err) {
       console.error("Failed to delete review: ", err);
