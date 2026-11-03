@@ -159,7 +159,7 @@ export default function SearchScreen({ navigation }: any) {
           latitude: typeof item.location?.latitude === "number" ? item.location.latitude : undefined,
           longitude: typeof item.location?.longitude === "number" ? item.location.longitude : undefined,
           pricePerNight: item.price_per_night_bwp ?? item.pricePerNight ?? 0,
-          rating: item.average_rating ?? 0,
+          rating: Math.round((item.average_rating ?? 0) * 10) / 10,
           reviewsCount: item.rating_count ?? 0,
           description: item.description ?? "",
           amenities: Array.isArray(item.amenities) ? item.amenities : [],

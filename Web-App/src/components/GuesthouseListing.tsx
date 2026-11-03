@@ -187,7 +187,7 @@ export default function GuesthouseListing() {
                   <td className="table-cell-bold">{item.name}{item.status === 'suspended' && (<span style={{ marginLeft: 8, fontSize: 11, padding: '2px 8px', borderRadius: 999, background: '#fee2e2', color: '#b91c1c', fontWeight: 600 }}>Suspended</span>)}</td>
                   <td><MapPin size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.city}</td>
                   <td className="table-cell-bold">P{item.price_per_night_bwp} / night</td>
-                  <td><Star size={12} style={{ display: 'inline', marginRight: 4 }}/> {item.average_rating}</td>
+                  <td><Star size={12} style={{ display: 'inline', marginRight: 4 }}/> {Number(item.average_rating).toFixed(1)}</td>
                   <td className="table-actions-cell" style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                     <button onClick={() => openEditModal(item)} className="action-btn-secondary" style={{ background: '#f1f5f9', border: '1px solid #ccc', padding: '6px 10px', borderRadius: '4px', cursor: 'pointer' }}>
                       <Edit size={12} style={{ display: 'inline', marginRight: 2 }}/> Edit

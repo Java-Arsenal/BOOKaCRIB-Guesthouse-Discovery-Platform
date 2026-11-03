@@ -55,7 +55,7 @@ export default function AdminDashboard() {
           location: cityString,
           price: Number(item.price_per_night_bwp ?? item.price ?? 0),
           badge: item.badge || 'Premier Rated',
-          rating: Number(item.average_rating ?? item.rating ?? 0),
+          rating: Math.round(Number(item.average_rating ?? item.rating ?? 0) * 10) / 10,
           reviewsCount: Number(item.rating_count ?? 0),
           createdAt: item.created_at ?? item.createdAt,
         };
@@ -113,7 +113,7 @@ export default function AdminDashboard() {
         await updateDoc(ghRef, {
           rating_sum: newSum,
           rating_count: newCount,
-          average_rating: newCount === 0 ? 0 : newSum / newCount
+          average_rating: newCount === 0 ? 0 : Math.round((newSum / newCount) * 10) / 10
         });
       }
       fetchDashboardData();

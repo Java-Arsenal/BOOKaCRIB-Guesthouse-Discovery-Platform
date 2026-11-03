@@ -82,7 +82,7 @@ export default function FavoritesScreen({ navigation }: any) {
         name: guesthouse.name,
         location,
         pricePerNight: guesthouse.price_per_night_bwp ?? 0,
-        rating: guesthouse.average_rating ?? 0,
+        rating: Math.round((guesthouse.average_rating ?? 0) * 10) / 10,
         reviewsCount: guesthouse.rating_count ?? 0,
         latitude:
           typeof guesthouse.location === "object"
@@ -201,7 +201,7 @@ export default function FavoritesScreen({ navigation }: any) {
                 {item.city ?? "Botswana"} · P{item.price_per_night_bwp ?? 0} / night
               </Text>
               <Text style={styles.rating}>
-                ★ {item.average_rating ?? 0} ({item.rating_count ?? 0})
+                ★ {(item.average_rating ?? 0).toFixed(1)} ({item.rating_count ?? 0})
               </Text>
             </Pressable>
           </View>
