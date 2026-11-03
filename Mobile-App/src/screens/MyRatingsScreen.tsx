@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { apiRequest } from "../api/client"; // Switched to apiRequest
+import { fetchMyRatings } from "../api/ratings"; // <-- Use the helper!
+import { apiRequest } from "../api/client";
 import { useCurrentUser } from "../hooks/useCurrentUser";
 import { colors, fonts, radius, shadow, spacing } from "../theme/theme";
 
@@ -19,7 +20,7 @@ interface Rating {
   guesthouse_id: string;
   guesthouse_name?: string;
   city?: string;
-  score: number;
+  rating: number; // Note: fetchMyRatings returns 'rating', not 'score'
   comment?: string;
 }
 
@@ -34,15 +35,9 @@ export default function MyRatingsScreen({ navigation }: any) {
     setLoading(true);
     setError(null);
     try {
-      // 1. Get the user's auth token
-      const token = await user.getIdToken();
-      
-      // 2. Pass the token to apiRequest so the backend knows who "me" is
-      const data = await apiRequest("/ratings/me", {}, token);
-      
-      // 3. The backend returns the raw ratings. Let's try to map the guesthouse name if possible.
-      // (If the backend doesn't send the name, we fall back to a generic name).
-      setRatings(Array.isArray(data) ? data : []);
+      // This automatically fetches the names and cities!
+      const data = await fetchMyRatings(user);
+      setRatings(data as Rating[]);
     } catch (err) {
       console.error("Failed to fetch ratings:", err);
       setError("Could not load your ratings. Make sure you are connected to the internet.");
@@ -113,12 +108,13 @@ export default function MyRatingsScreen({ navigation }: any) {
           <View style={styles.card}>
             <View style={styles.cardHeader}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{item.guesthouse_name || "Guesthouse"}</Text>
+                {/* The name and city will now be populated from the join! */}
+                <Text style={styles.name}>{item.guesthouse_name || "Deleted Guesthouse"}</Text>
                 <Text style={styles.meta}>{item.city || "Botswana"}</Text>
               </View>
               <View style={styles.scoreRow}>
                 <Ionicons name="star" size={16} color={colors.gold} />
-                <Text style={styles.score}>{item.score}.0</Text>
+                <Text style={styles.score}>{item.rating}.0</Text>
               </View>
               <Pressable onPress={() => handleDelete(item.guesthouse_id)} style={styles.deleteBtn}>
                 <Ionicons name="trash-outline" size={20} color={colors.error} />
