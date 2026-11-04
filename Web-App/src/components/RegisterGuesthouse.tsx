@@ -9,7 +9,7 @@ export default function RegisterGuesthouse() {
   const [amenities, setAmenities] = useState('');
   const [latitude, setLatitude] = useState('');
   const [longitude, setLongitude] = useState('');
-  const [city, setCity] = useState('Palapye');
+  const [city, setCity] = useState(''); // <-- Changed from 'Palapye' to empty
   const [country] = useState('Botswana');
   const [price, setPrice] = useState('');
   const [contactName, setContactName] = useState('');
@@ -17,7 +17,7 @@ export default function RegisterGuesthouse() {
   const [contactEmail, setContactEmail] = useState('');
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [galleryFiles, setGalleryFiles] = useState<(File | null)[]>([null, null, null, null]);
-  const [badge, setBadge] = useState('Premier Rated'); // Display only — not yet supported by the backend schema
+  const [badge, setBadge] = useState('Premier Rated');
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -35,8 +35,8 @@ export default function RegisterGuesthouse() {
     e.preventDefault();
     setErrorMessage('');
 
-    if (!name || !price || !description || !latitude || !longitude || !contactName || !contactPhone) {
-      setErrorMessage('Please fill in all required fields, including coordinates and contact name/phone.');
+    if (!name || !price || !description || !latitude || !longitude || !city || !contactName || !contactPhone) {
+      setErrorMessage('Please fill in all required fields, including city, coordinates, and contact details.');
       return;
     }
 
@@ -82,6 +82,7 @@ export default function RegisterGuesthouse() {
       setAmenities('');
       setLatitude('');
       setLongitude('');
+      setCity('');
       setPrice('');
       setContactName('');
       setContactPhone('');
@@ -157,21 +158,15 @@ export default function RegisterGuesthouse() {
         <div className="register-row-grid">
           <div className="register-field-group">
             <label className="register-label">City / Hub *</label>
-            <select
+            {/* REPLACED DROPDOWN WITH TEXT INPUT */}
+            <input
+              type="text"
               value={city}
               onChange={e => setCity(e.target.value)}
-              className="register-select"
-            >
-              <option value="Palapye">Palapye</option>
-              <option value="Gaborone">Gaborone</option>
-              <option value="Maun">Maun</option>
-              <option value="Francistown">Francistown</option>
-              <option value="Kasane">Kasane</option>
-              <option value="Serowe">Serowe</option>
-              <option value="Lobatse">Lobatse</option>
-              <option value="Molepolole">Molepolole</option>
-              <option value="Selibe Phikwe">Selibe Phikwe</option>
-            </select>
+              className="register-input"
+              placeholder="e.g., Gaborone, Maun, Kang"
+              required
+            />
           </div>
 
           <div className="register-field-group">
